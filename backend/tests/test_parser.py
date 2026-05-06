@@ -13,9 +13,15 @@ SAMPLES = pathlib.Path(__file__).parent.parent.parent / "samples"
 VSDX_FILE = SAMPLES / "Кропачево-Дема Visio.vsdx"
 VSD_FILE = SAMPLES / "Златоуст-Кропачево Visio (2).vsd"
 
-_LIBREOFFICE_AVAILABLE = bool(
-    os.environ.get("LIBREOFFICE_PATH") or shutil.which("soffice")
-)
+def _libreoffice_available() -> bool:
+    try:
+        from parser.vsd_converter import _find_soffice
+        _find_soffice()
+        return True
+    except RuntimeError:
+        return False
+
+_LIBREOFFICE_AVAILABLE = _libreoffice_available()
 
 
 @pytest.fixture(scope="module")

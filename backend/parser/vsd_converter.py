@@ -32,17 +32,23 @@ def _find_soffice() -> str:
     )
 
 
-def convert_vsd_to_vsdx(vsd_path: str) -> str:
-    """Convert a .vsd file to .vsdx using LibreOffice headless.
+def convert_vsd_to_odg(vsd_path: str) -> str:
+    """Convert a .vsd file to .odg using LibreOffice headless.
 
-    Returns the path to the converted .vsdx inside a freshly-created tmpdir.
-    The caller is responsible for deleting that tmpdir when done.
+    The input is copied to an ASCII filename inside a new tmpdir to avoid
+    encoding issues when passing Cyrillic paths to soffice on Windows.
+    Returns the path to 'input.odg' inside that tmpdir.
+    The caller is responsible for deleting the tmpdir when done.
     """
     soffice = _find_soffice()
     tmpdir = tempfile.mkdtemp(prefix="vsd_convert_")
-    logger.info("Converting %s → vsdx in %s", vsd_path, tmpdir)
+    logger.info("Converting %s → odg in %s", vsd_path, tmpdir)
 
-    cmd = [soffice, "--headless", "--convert-to", "vsdx", "--outdir", tmpdir, vsd_path]
+    # Use a plain ASCII input name to avoid encoding problems with soffice
+    input_copy = os.path.join(tmpdir, "input.vsd")
+    shutil.copy2(vsd_path, input_copy)
+
+    cmd = [soffice, "--headless", "--convert-to", "odg", "--outdir", tmpdir, input_copy]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     except subprocess.TimeoutExpired:
@@ -55,19 +61,16 @@ def convert_vsd_to_vsdx(vsd_path: str) -> str:
             f"LibreOffice conversion failed (exit {result.returncode}):\n{result.stderr}"
         )
 
-    basename = os.path.splitext(os.path.basename(vsd_path))[0]
-    vsdx_path = os.path.join(tmpdir, basename + ".vsdx")
-
-    if not os.path.isfile(vsdx_path):
-        # LibreOffice sometimes lowercases the stem — search for it
-        candidates = [f for f in os.listdir(tmpdir) if f.lower().endswith(".vsdx")]
+    odg_path = os.path.join(tmpdir, "input.odg")
+    if not os.path.isfile(odg_path):
+        candidates = [f for f in os.listdir(tmpdir) if f.lower().endswith(".odg")]
         if not candidates:
             shutil.rmtree(tmpdir, ignore_errors=True)
             raise RuntimeError(
-                f"Conversion appeared to succeed but no .vsdx found in {tmpdir}.\n"
-                f"LibreOffice stdout: {result.stdout}\nstderr: {result.stderr}"
+                f"Conversion appeared to succeed but no .odg found in {tmpdir}.\n"
+                f"stdout: {result.stdout}\nstderr: {result.stderr}"
             )
-        vsdx_path = os.path.join(tmpdir, candidates[0])
+        odg_path = os.path.join(tmpdir, candidates[0])
 
-    logger.info("Converted to %s", vsdx_path)
-    return vsdx_path
+    logger.info("Converted to %s", odg_path)
+    return odg_path
