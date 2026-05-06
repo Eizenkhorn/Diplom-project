@@ -1,12 +1,21 @@
 import math
+import os
 import pathlib
+import shutil
+
 import pytest
 
 from parser.vsdx_parser import parse_vsdx
+from parser import parse_visio_file
 from models.parsed import ParsedDocument
 
 SAMPLES = pathlib.Path(__file__).parent.parent.parent / "samples"
 VSDX_FILE = SAMPLES / "Кропачево-Дема Visio.vsdx"
+VSD_FILE = SAMPLES / "Златоуст-Кропачево Visio (2).vsd"
+
+_LIBREOFFICE_AVAILABLE = bool(
+    os.environ.get("LIBREOFFICE_PATH") or shutil.which("soffice")
+)
 
 
 @pytest.fixture(scope="module")
@@ -59,3 +68,32 @@ def test_shape_types_known(doc: ParsedDocument):
 def test_dimensions_non_negative(doc: ParsedDocument):
     bad = [s.id for s in doc.shapes if s.width < 0 or s.height < 0]
     assert bad == [], f"Negative width/height in: {bad[:10]}"
+
+
+@pytest.mark.skipif(
+    not _LIBREOFFICE_AVAILABLE,
+    reason="LibreOffice not installed (no soffice on PATH and LIBREOFFICE_PATH not set)",
+)
+def test_vsd_conversion_and_parse():
+    assert VSD_FILE.exists(), f"Sample .vsd not found: {VSD_FILE}"
+
+    doc, tmpdir = parse_visio_file(str(VSD_FILE))
+
+    try:
+        assert doc.page_width > 0, "page_width must be positive"
+        assert doc.page_height > 0, "page_height must be positive"
+        assert len(doc.shapes) > 0, "shapes list must not be empty"
+
+        bad_coords = [
+            s.id
+            for s in doc.shapes
+            if not all(
+                math.isfinite(v)
+                for v in (s.x, s.y, s.width, s.height, s.rotation)
+            )
+        ]
+        assert bad_coords == [], f"Non-finite coords in .vsd shapes: {bad_coords[:10]}"
+    finally:
+        if tmpdir:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            assert not os.path.exists(tmpdir), "Converter tmpdir should be deleted by test"

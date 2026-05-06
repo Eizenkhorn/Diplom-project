@@ -1,12 +1,13 @@
-import tempfile
-import os
 import logging
+import os
+import shutil
+import tempfile
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from models.parsed import ParsedDocument
-from parser.vsdx_parser import parse_vsdx
+from parser import parse_visio_file
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,19 +27,34 @@ def health():
 
 
 @app.post("/api/parse", response_model=ParsedDocument)
-async def parse(file: UploadFile = File(...)) -> ParsedDocument:
+async def parse(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+) -> ParsedDocument:
     filename = file.filename or ""
-    if not filename.lower().endswith((".vsdx", ".vsd")):
-        raise HTTPException(status_code=400, detail="Only .vsdx files are supported")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in (".vsdx", ".vsd"):
+        raise HTTPException(status_code=400, detail="Only .vsdx and .vsd files are supported")
 
-    suffix = os.path.splitext(filename)[1]
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
+    # Save upload to its own tmpdir so we can clean it up reliably
+    upload_dir = tempfile.mkdtemp(prefix="vsdx_upload_")
+    upload_path = os.path.join(upload_dir, os.path.basename(filename) or f"upload{ext}")
 
     try:
-        return parse_vsdx(tmp_path)
-    except Exception as exc:
+        with open(upload_path, "wb") as f:
+            f.write(await file.read())
+
+        doc, convert_tmpdir = parse_visio_file(upload_path)
+    except (ValueError, RuntimeError) as exc:
+        shutil.rmtree(upload_dir, ignore_errors=True)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    finally:
-        os.unlink(tmp_path)
+    except Exception as exc:
+        shutil.rmtree(upload_dir, ignore_errors=True)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Schedule cleanup after response is sent
+    background_tasks.add_task(shutil.rmtree, upload_dir, True)
+    if convert_tmpdir:
+        background_tasks.add_task(shutil.rmtree, convert_tmpdir, True)
+
+    return doc
