@@ -1,14 +1,14 @@
 import { useRef, useState, useCallback } from 'react'
 import { createSession } from '../api'
 import { useSessionStore } from '../store/session'
-import { useRegionsStore } from '../store/regions'
+import { useMarkupStore } from '../store/markup'
 
 export default function FileUpload() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const { setSession } = useSessionStore()
-  const { loadRegions, reset: resetRegions } = useRegionsStore()
+  const { loadMarkup, reset: resetMarkup } = useMarkupStore()
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -16,16 +16,16 @@ export default function FileUpload() {
       setLocalError(null)
       try {
         const meta = await createSession(file)
-        resetRegions()
+        resetMarkup()
         setSession(meta.session_id, meta.page_width, meta.page_height, file.name, meta.svg_url)
-        await loadRegions(meta.session_id)
+        await loadMarkup(meta.session_id)
       } catch (e) {
         setLocalError(e instanceof Error ? e.message : String(e))
       } finally {
         setUploading(false)
       }
     },
-    [setSession, loadRegions, resetRegions],
+    [setSession, loadMarkup, resetMarkup],
   )
 
   const handleChange = useCallback(
