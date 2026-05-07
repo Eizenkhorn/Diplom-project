@@ -6,6 +6,7 @@ import type {
   StationPoint,
   MarkPoint,
   BandType,
+  ExtractionResult,
 } from '../types'
 
 export interface SessionCreateResponse {
@@ -112,6 +113,20 @@ export async function createMark(sessionId: string, body: MarkCreate): Promise<M
 export async function deleteMark(sessionId: string, markId: string): Promise<void> {
   const res = await fetch(`/api/sessions/${sessionId}/markup/marks/${markId}`, { method: 'DELETE' })
   await _checkOk(res)
+}
+
+// ── extraction / export ───────────────────────────────────────────────────────
+
+export async function extractSession(sessionId: string): Promise<ExtractionResult> {
+  const res = await fetch(`/api/sessions/${sessionId}/extract`)
+  await _checkOk(res)
+  return res.json() as Promise<ExtractionResult>
+}
+
+export async function exportSession(sessionId: string): Promise<unknown> {
+  const res = await fetch(`/api/sessions/${sessionId}/export`)
+  await _checkOk(res)
+  return res.json()
 }
 
 // kept for tests

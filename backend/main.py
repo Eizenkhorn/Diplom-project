@@ -16,6 +16,10 @@ from models.markup_types import BAND_TYPES, MARK_SUBTYPES
 from models.parsed import ParsedDocument, ParsedShape
 from parser import parse_visio_file
 from session.store import create_session, get_session
+from extractors.coordinate_ruler import extract_coordinate_ruler, CoordinateMapping
+from extractors.profile import extract_profile
+from extractors.speed_limits import extract_speed_limits
+from extractors.stations import extract_stations
 
 logging.basicConfig(level=logging.INFO)
 
@@ -294,24 +298,131 @@ def markup_types():
     return {"bands": BAND_TYPES, "mark_subtypes": MARK_SUBTYPES}
 
 
-# ── export ─────────────────────────────────────────────────────────────────────
+# ── extraction helpers ─────────────────────────────────────────────────────────
 
-@app.get("/api/sessions/{session_id}/export")
-def sessions_export(session_id: str):
+def _run_extraction(session_id: str) -> dict:
+    """Run all extractors and return the full export dict + _extraction_log."""
     session = _require_session(session_id)
+    markup = session.markup
+    shapes = session.doc.shapes
+    all_warnings: list[str] = []
+
     now = datetime.now(timezone.utc).isoformat()
     ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    # Derive a human-readable name from the stored filename (session has no filename
+    # field yet; fall back to the session id prefix)
+    doc_name = session_id[:8]
+
+    # ── Coordinate ruler ──────────────────────────────────────────────────────
+    ruler_bands = [b for b in markup.bands if b.type == "coordinate_ruler"]
+    coord_mapping: CoordinateMapping | None = None
+    ruler_log: dict = {"found_kilometers": 0, "direction": None, "range": None}
+
+    if not ruler_bands:
+        all_warnings.append(
+            "export: no coordinate_ruler band marked — "
+            "stations and speed limits will use raw pixel coordinates"
+        )
+        # Build a trivial 1:1 mapping (pixels = network metres)
+        if markup.work_area:
+            wa = markup.work_area
+            coord_mapping = CoordinateMapping(
+                points=[(wa.x_start, 0), (wa.x_end, int((wa.x_end - wa.x_start) // 1000))],
+                direction="ascending",
+            )
+    else:
+        if markup.work_area is None:
+            raise HTTPException(status_code=400, detail="Work area must be marked before export")
+        ruler_band = ruler_bands[0]
+        coord_mapping, w = extract_coordinate_ruler(shapes, ruler_band, markup.work_area)
+        all_warnings.extend(w)
+        if coord_mapping.points:
+            kms = [km for _, km in coord_mapping.points]
+            ruler_log = {
+                "found_kilometers": len(coord_mapping.points),
+                "direction": coord_mapping.direction,
+                "range": [min(kms), max(kms)],
+            }
+
+    if coord_mapping is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot export: mark the work area and coordinate ruler band first",
+        )
+
+    wa = markup.work_area
+
+    # ── Coordinate ruler → coordinateRuler.segments ───────────────────────────
+    ruler_segments: list[dict] = []
+    if coord_mapping.points:
+        kms = [km for _, km in coord_mapping.points]
+        ruler_segments = [{
+            "startCoordinate": kms[0] if coord_mapping.direction == "descending" else kms[-1],
+            "endCoordinate": kms[-1] if coord_mapping.direction == "descending" else kms[0],
+            "adjustments": [],
+        }]
+
+    # ── Profile ───────────────────────────────────────────────────────────────
+    profile_bands = [b for b in markup.bands if b.type == "profile" and not b.is_informational]
+    profile_segs: list[dict] = []
+    profile_log: dict = {"found_segments": 0, "total_length_meters": 0}
+
+    if profile_bands and wa:
+        segs, w = extract_profile(shapes, profile_bands[0], wa)
+        all_warnings.extend(w)
+        profile_segs = [s.model_dump() for s in segs]
+        total_m = segs[-1].end if segs else 0
+        profile_log = {"found_segments": len(segs), "total_length_meters": total_m}
+
+    # ── Speed limits ──────────────────────────────────────────────────────────
+    speed_bands = [b for b in markup.bands if b.type == "speed_limits" and not b.is_informational]
+    speed_segs: list[dict] = []
+    speed_log: dict = {"found_segments": 0, "value_scale_points": [], "used_color_filter": False}
+
+    if speed_bands and wa:
+        segs, stats, w = extract_speed_limits(shapes, speed_bands[0], wa, coord_mapping)
+        all_warnings.extend(w)
+        speed_segs = [s.model_dump() for s in segs]
+        speed_log = stats
+
+    # ── Stations ─────────────────────────────────────────────────────────────
+    stations_list, w = extract_stations(markup.stations, coord_mapping)
+    all_warnings.extend(w)
+    stations_log = {"count": len(stations_list)}
+
+    # ── Marks (MarkPoints → output marks array) ───────────────────────────────
+    output_marks = [
+        {
+            "subtype": mk.subtype,
+            "coordinate": round(coord_mapping.x_to_network_coord(mk.x)),
+            "x": mk.x,
+            "y": mk.y,
+            "meta": mk.meta,
+        }
+        for mk in markup.marks
+    ]
+
+    extraction_log = {
+        "coordinate_ruler": ruler_log,
+        "profile": profile_log,
+        "speed_limits": speed_log,
+        "stations": stations_log,
+        "warnings": all_warnings,
+    }
+
     return {
+        "_extraction_log": extraction_log,
         "metadata": {
             "id": f"nsi-2-{ts}",
-            "name": "",
+            "name": doc_name,
             "createdAt": now,
             "updatedAt": now,
         },
-        "coordinateRuler": {"segments": []},
-        "stations": [],
-        "profile": [],
-        "speedLimits": [],
+        "coordinateRuler": {"segments": ruler_segments},
+        "stations": stations_list,
+        "profile": profile_segs,
+        "speedLimits": speed_segs,
         "locomotives": [],
         "cars": [],
         "canvasLayers": [],
@@ -321,9 +432,26 @@ def sessions_export(session_id: str):
         "optimalRegimeBands": [],
         "locomotiveRegimeBands": [],
         "longitudinalForces": [],
-        "marks": [],
-        "_markup": session.markup.model_dump(),
+        "marks": output_marks,
     }
+
+
+# ── extract (preview) ──────────────────────────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/extract")
+def sessions_extract(session_id: str):
+    """Run all extractors and return structured results + log for preview."""
+    return _run_extraction(session_id)
+
+
+# ── export (download) ──────────────────────────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/export")
+def sessions_export(session_id: str):
+    """Same as extract but omits the internal _extraction_log field."""
+    result = _run_extraction(session_id)
+    result.pop("_extraction_log", None)
+    return result
 
 
 # kept for existing tests

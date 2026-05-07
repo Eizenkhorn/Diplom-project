@@ -7,17 +7,34 @@ from models.parsed import ParsedDocument
 from parser.vsdx_parser import parse_vsdx
 from parser.visio_converter import convert_vsd_to_odg, convert_to_background
 from parser.odg_parser import parse_odg
+from parser.svg_postprocess import fix_bitmap_refs
 
 logger = logging.getLogger(__name__)
 
 
 def _try_convert_to_background(input_path: str) -> tuple[str, str]:
-    """Like convert_to_background but returns ("", "") on failure."""
+    """Convert to background image, then post-process SVG bitmap refs if needed."""
     try:
-        return convert_to_background(input_path)
+        bg_path, bg_tmpdir = convert_to_background(input_path)
     except Exception as exc:
         logger.warning("Background image conversion failed (canvas will show blank): %s", exc)
         return "", ""
+
+    if bg_path.endswith(".svg"):
+        fixed_path = bg_path[:-4] + "_fixed.svg"
+        try:
+            count = fix_bitmap_refs(bg_path, fixed_path)
+            if count > 0:
+                os.replace(fixed_path, bg_path)
+                logger.info("SVG post-processed: %d bitmap refs fixed", count)
+            else:
+                os.unlink(fixed_path)
+        except Exception as exc:
+            logger.warning("SVG post-processing failed (falling back to original): %s", exc)
+            if os.path.exists(fixed_path):
+                os.unlink(fixed_path)
+
+    return bg_path, bg_tmpdir
 
 
 def parse_visio_file(file_path: str) -> tuple[ParsedDocument, str, list[str]]:

@@ -6,6 +6,7 @@ import { useMarkupStore } from '../store/markup'
 import type { MarkupMode } from '../store/markup'
 import { BAND_TYPES, MARK_SUBTYPES } from '../types'
 import type { BandType } from '../types'
+import ExtractionPanel from './ExtractionPanel'
 
 // ── local types ────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ export default function MapCanvas() {
   const [stationName, setStationName] = useState('')
   // local state for mark subtype selector in toolbar (persists across mode changes)
   const [markSubtypeSelect, setMarkSubtypeSelect] = useState(MARK_SUBTYPES[0].subtype)
+  const [showExtraction, setShowExtraction] = useState(false)
 
   // ── resize observer ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -384,6 +386,11 @@ export default function MapCanvas() {
           </button>
         )}
       </div>
+
+      {/* ── Extraction panel modal ── */}
+      {showExtraction && sessionId && (
+        <ExtractionPanel sessionId={sessionId} onClose={() => setShowExtraction(false)} />
+      )}
 
       {/* ── Main area ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -729,7 +736,17 @@ export default function MapCanvas() {
           </div>
 
           {/* Export */}
-          <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
+          <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => setShowExtraction(true)}
+              style={{
+                display: 'block', width: '100%', padding: '8px', background: '#10b981', color: '#fff',
+                border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                textAlign: 'center', cursor: 'pointer',
+              }}
+            >
+              Извлечь данные…
+            </button>
             <a
               href={`/api/sessions/${sessionId}/export`}
               target="_blank"
@@ -740,7 +757,7 @@ export default function MapCanvas() {
                 textAlign: 'center', textDecoration: 'none',
               }}
             >
-              Экспорт JSON
+              Скачать JSON
             </a>
           </div>
         </aside>

@@ -63,6 +63,39 @@ export interface SessionMarkup {
   marks: MarkPoint[]
 }
 
+// ── extraction results ────────────────────────────────────────────────────────
+
+export interface ProfileSegment {
+  start: number
+  end: number
+  angle: number
+}
+
+export interface SpeedLimitSegment {
+  start: number
+  end: number
+  limit: number
+  type: string
+}
+
+export interface ExtractionLog {
+  coordinate_ruler: { found_kilometers: number; direction: string | null; range: [number, number] | null }
+  profile: { found_segments: number; total_length_meters: number }
+  speed_limits: { found_segments: number; value_scale_points: number[]; used_color_filter: boolean }
+  stations: { count: number }
+  warnings: string[]
+}
+
+export interface ExtractionResult {
+  _extraction_log: ExtractionLog
+  metadata: { id: string; name: string; createdAt: string; updatedAt: string }
+  coordinateRuler: { segments: Array<{ startCoordinate: number; endCoordinate: number; adjustments: unknown[] }> }
+  stations: Array<{ name: string; coordinate: number; graphical: Record<string, unknown> }>
+  profile: ProfileSegment[]
+  speedLimits: SpeedLimitSegment[]
+  marks: unknown[]
+}
+
 // ── type registries (must stay in sync with backend/models/markup_types.py) ───
 
 export interface BandTypeInfo {

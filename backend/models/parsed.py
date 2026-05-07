@@ -11,6 +11,8 @@ class ParsedShape(BaseModel):
     rotation: float         # degrees, CCW from Visio Angle cell
     shape_type: str         # "Shape" | "Group" | "Foreign" | "Connector"
     parent_id: str | None   # ID of containing Group, or None for top-level
+    line_color: str | None = None   # hex "#rrggbb" or None if inherited/unknown
+    fill_color: str | None = None   # hex "#rrggbb" or None if inherited/unknown
 
 
 class ParsedDocument(BaseModel):

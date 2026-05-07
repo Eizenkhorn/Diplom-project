@@ -1,10 +1,58 @@
 import logging
 import math
+import re
 from typing import Optional
 
 import vsdx
+from lxml import etree
 
 from models.parsed import ParsedDocument, ParsedShape
+
+_VISIO_NS = "http://schemas.microsoft.com/office/visio/2012/main"
+
+
+def _parse_visio_color(val: str) -> Optional[str]:
+    """Convert a Visio cell value to a CSS hex color string, or None."""
+    if not val:
+        return None
+    val = val.strip()
+    # RGB(r,g,b) formula
+    m = re.match(r"RGB\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", val, re.IGNORECASE)
+    if m:
+        r, g, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return f"#{r:02x}{g:02x}{b:02x}"
+    # #rrggbb
+    if re.match(r"^#[0-9a-fA-F]{6}$", val):
+        return val.lower()
+    # 0xBBGGRR  — Windows COLORREF (stored as hex integer, BGR byte order)
+    m = re.match(r"^0x([0-9a-fA-F]+)$", val, re.IGNORECASE)
+    if m:
+        n = int(m.group(1), 16)
+        b = (n >> 16) & 0xFF
+        g = (n >> 8) & 0xFF
+        r = n & 0xFF
+        return f"#{r:02x}{g:02x}{b:02x}"
+    return None
+
+
+def _cell_color(shape_xml: etree._Element, cell_name: str) -> Optional[str]:
+    """Extract a color cell value from a Visio shape XML element."""
+    ns = _VISIO_NS
+    # Direct Cell child
+    cell = shape_xml.find(f"{{{ns}}}Cell[@N='{cell_name}']")
+    if cell is None:
+        # Inside Section/Row/Cell
+        for section in shape_xml.findall(f"{{{ns}}}Section"):
+            for row in section.findall(f"{{{ns}}}Row"):
+                cell = row.find(f"{{{ns}}}Cell[@N='{cell_name}']")
+                if cell is not None:
+                    break
+            if cell is not None:
+                break
+    if cell is None:
+        return None
+    raw = cell.get("V") or cell.get("F") or ""
+    return _parse_visio_color(raw)
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +181,16 @@ def parse_vsdx(file_path: str) -> ParsedDocument:
         raw_text = shape.text or ""
         text: Optional[str] = raw_text.replace("\r", "").replace("\n", "").strip() or None
 
+        line_color: Optional[str] = None
+        fill_color: Optional[str] = None
+        try:
+            xml_el = shape.xml  # lxml element exposed by vsdx
+            if xml_el is not None:
+                line_color = _cell_color(xml_el, "LineColor")
+                fill_color = _cell_color(xml_el, "FillForegnd")
+        except Exception:
+            pass
+
         result.append(
             ParsedShape(
                 id=str(shape.ID),
@@ -144,6 +202,8 @@ def parse_vsdx(file_path: str) -> ParsedDocument:
                 rotation=rotation_deg,
                 shape_type=shape.shape_type or "Shape",
                 parent_id=parent_id,
+                line_color=line_color,
+                fill_color=fill_color,
             )
         )
 
