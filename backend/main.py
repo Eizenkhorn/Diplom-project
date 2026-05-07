@@ -1,7 +1,10 @@
 import logging
+import mimetypes
 import os
 import shutil
 import tempfile
+import uuid
+from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from models.parsed import ParsedDocument, ParsedShape
+from models.region import Region, RegionType
 from parser import parse_visio_file
 from session.store import create_session, get_session
 
@@ -23,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── response models ────────────────────────────────────────────────────────────
 
 class SessionCreateResponse(BaseModel):
     session_id: str
@@ -39,6 +44,24 @@ class ShapesPageResponse(BaseModel):
     limit: int
 
 
+class RegionCreate(BaseModel):
+    type: RegionType
+    x: float
+    y: float
+    width: float
+    height: float
+    meta: dict = {}
+
+
+class RegionUpdate(BaseModel):
+    type: RegionType | None = None
+    x: float | None = None
+    y: float | None = None
+    width: float | None = None
+    height: float | None = None
+    meta: dict | None = None
+
+
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 def _validate_ext(filename: str) -> str:
@@ -46,6 +69,13 @@ def _validate_ext(filename: str) -> str:
     if ext not in (".vsdx", ".vsd"):
         raise HTTPException(status_code=400, detail="Only .vsdx and .vsd files are supported")
     return ext
+
+
+def _require_session(session_id: str):
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
 
 
 async def _save_and_parse(
@@ -70,12 +100,10 @@ async def _save_and_parse(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     background_tasks.add_task(shutil.rmtree, upload_dir, True)
-    # svg tmpdirs are NOT cleaned here — stored in session so /background can serve them
-
     return doc, svg_path, tmpdirs
 
 
-# ── endpoints ──────────────────────────────────────────────────────────────────
+# ── session endpoints ──────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 def health():
@@ -98,15 +126,25 @@ async def sessions_create(
     )
 
 
+@app.get("/api/sessions/{session_id}", response_model=SessionCreateResponse)
+def sessions_get(session_id: str) -> SessionCreateResponse:
+    session = _require_session(session_id)
+    return SessionCreateResponse(
+        session_id=session_id,
+        page_width=session.doc.page_width,
+        page_height=session.doc.page_height,
+        shape_count=len(session.doc.shapes),
+        svg_url=f"/api/sessions/{session_id}/background" if session.svg_path else None,
+    )
+
+
 @app.get("/api/sessions/{session_id}/shapes", response_model=ShapesPageResponse)
 def sessions_shapes(
     session_id: str,
     offset: int = Query(0, ge=0),
     limit: int = Query(2000, ge=1, le=5000),
 ) -> ShapesPageResponse:
-    session = get_session(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _require_session(session_id)
     total = len(session.doc.shapes)
     page = session.doc.shapes[offset : offset + limit]
     return ShapesPageResponse(shapes=page, total=total, offset=offset, limit=limit)
@@ -114,14 +152,93 @@ def sessions_shapes(
 
 @app.get("/api/sessions/{session_id}/background")
 def sessions_background(session_id: str) -> FileResponse:
-    import mimetypes
-    session = get_session(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _require_session(session_id)
     if not session.svg_path or not os.path.isfile(session.svg_path):
         raise HTTPException(status_code=404, detail="Background image not available")
     mime = mimetypes.guess_type(session.svg_path)[0] or "image/png"
     return FileResponse(session.svg_path, media_type=mime)
+
+
+# ── region endpoints ───────────────────────────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/regions", response_model=list[Region])
+def regions_list(session_id: str):
+    return _require_session(session_id).regions
+
+
+@app.post("/api/sessions/{session_id}/regions", response_model=Region, status_code=201)
+def regions_create(session_id: str, body: RegionCreate) -> Region:
+    session = _require_session(session_id)
+    region = Region(id=str(uuid.uuid4()), **body.model_dump())
+    session.regions.append(region)
+    return region
+
+
+@app.put("/api/sessions/{session_id}/regions/{region_id}", response_model=Region)
+def regions_update(session_id: str, region_id: str, body: RegionUpdate) -> Region:
+    session = _require_session(session_id)
+    patch = body.model_dump(exclude_none=True)
+    for i, r in enumerate(session.regions):
+        if r.id == region_id:
+            updated = r.model_copy(update=patch)
+            session.regions[i] = updated
+            return updated
+    raise HTTPException(status_code=404, detail="Region not found")
+
+
+@app.delete("/api/sessions/{session_id}/regions/{region_id}", status_code=204)
+def regions_delete(session_id: str, region_id: str) -> None:
+    session = _require_session(session_id)
+    before = len(session.regions)
+    session.regions = [r for r in session.regions if r.id != region_id]
+    if len(session.regions) == before:
+        raise HTTPException(status_code=404, detail="Region not found")
+
+
+# ── annotation types ───────────────────────────────────────────────────────────
+
+@app.get("/api/annotation-types")
+def annotation_types():
+    return [
+        {"type": "profile", "label": "Профиль пути", "color": "#10b981"},
+        {"type": "speed_limit", "label": "Ограничения скорости", "color": "#ef4444"},
+        {"type": "station", "label": "Станции", "color": "#3b82f6"},
+        {"type": "coordinate_ruler", "label": "Координатная шкала", "color": "#a855f7"},
+        {"type": "track_plan", "label": "План пути", "color": "#f59e0b"},
+        {"type": "other", "label": "Прочее", "color": "#6b7280"},
+    ]
+
+
+# ── export ─────────────────────────────────────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/export")
+def sessions_export(session_id: str):
+    session = _require_session(session_id)
+    now = datetime.now(timezone.utc).isoformat()
+    ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+    return {
+        "metadata": {
+            "id": f"nsi-2-{ts}",
+            "name": "",
+            "createdAt": now,
+            "updatedAt": now,
+        },
+        "coordinateRuler": {"segments": []},
+        "stations": [],
+        "profile": [],
+        "speedLimits": [],
+        "locomotives": [],
+        "cars": [],
+        "canvasLayers": [],
+        "trackPlan": [],
+        "optimalSpeedCurve": [],
+        "speedCurve": [],
+        "optimalRegimeBands": [],
+        "locomotiveRegimeBands": [],
+        "longitudinalForces": [],
+        "marks": [],
+        "_regions": [r.model_dump() for r in session.regions],
+    }
 
 
 # kept for existing tests

@@ -3,6 +3,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from models.parsed import ParsedDocument
+from models.region import Region
 
 
 @dataclass
@@ -10,6 +11,7 @@ class Session:
     doc: ParsedDocument
     svg_path: str
     tmpdirs: list[str] = field(default_factory=list)
+    regions: list[Region] = field(default_factory=list)
 
 
 sessions: dict[str, Session] = {}
