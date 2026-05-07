@@ -1,3 +1,5 @@
+// ── parsed document (from vsdx parser) ────────────────────────────────────────
+
 export interface ParsedShape {
   id: string
   text: string | null
@@ -16,89 +18,81 @@ export interface ParsedDocument {
   shapes: ParsedShape[]
 }
 
-export type RegionType =
+// ── markup models ──────────────────────────────────────────────────────────────
+
+export type BandType =
   | 'speed_limits'
-  | 'traction_modes'
-  | 'stations'
-  | 'coordinate_ruler'
   | 'profile'
   | 'track_plan'
-  | 'marks'
-  | 'unknown'
+  | 'traction_modes'
+  | 'coordinate_ruler'
 
-export interface Region {
+export interface WorkArea {
+  x_start: number
+  x_end: number
+}
+
+export interface HorizontalBand {
   id: string
-  type: RegionType
+  type: BandType
+  y_top: number
+  y_bottom: number
+  extracted: Record<string, unknown>
+}
+
+export interface StationPoint {
+  id: string
+  x: number
+  name: string
+}
+
+export interface MarkPoint {
+  id: string
   x: number
   y: number
-  width: number
-  height: number
+  subtype: string
   meta: Record<string, unknown>
 }
 
-export interface AnnotationType {
-  type: RegionType
-  label: string
-  color: string
-  description: string
-  json_field: string | null
+export interface SessionMarkup {
+  work_area: WorkArea | null
+  bands: HorizontalBand[]
+  stations: StationPoint[]
+  marks: MarkPoint[]
 }
 
-export const ANNOTATION_TYPES: AnnotationType[] = [
-  {
-    type: 'speed_limits',
-    label: 'Ограничения скорости',
-    color: '#ef4444',
-    json_field: 'speedLimits',
-    description: 'Красная огибающая линия по верхним черным штрихам',
-  },
-  {
-    type: 'traction_modes',
-    label: 'Режимы тяги',
-    color: '#a855f7',
-    json_field: 'locomotiveRegimeBands',
-    description: 'Стрелки Тяга 2С / Тяга С / Р/т СП в верхней части карты',
-  },
-  {
-    type: 'stations',
-    label: 'Станции',
-    color: '#3b82f6',
-    json_field: 'stations',
-    description: 'Названия станций и раздельных пунктов',
-  },
-  {
-    type: 'coordinate_ruler',
-    label: 'Координатная шкала',
-    color: '#6b7280',
-    json_field: 'coordinateRuler',
-    description: 'Черная полоса с километровыми отметками',
-  },
-  {
-    type: 'profile',
-    label: 'Профиль пути',
-    color: '#10b981',
-    json_field: 'profile',
-    description: 'Углы уклонов в ‰ и длины сегментов под километровой шкалой',
-  },
-  {
-    type: 'track_plan',
-    label: 'План пути',
-    color: '#f59e0b',
-    json_field: 'trackPlan',
-    description: 'Синяя ступенчатая ломаная, отображающая план',
-  },
-  {
-    type: 'marks',
-    label: 'Метки и сигналы',
-    color: '#eab308',
-    json_field: 'marks',
-    description: 'Светофоры, треугольники, иконки путевых объектов',
-  },
-  {
-    type: 'unknown',
-    label: 'Не определено',
-    color: '#9ca3af',
-    json_field: null,
-    description: 'Регион требует уточнения типа',
-  },
+// ── type registries (must stay in sync with backend/models/markup_types.py) ───
+
+export interface BandTypeInfo {
+  type: BandType
+  label: string
+  color: string
+}
+
+export interface MarkSubtypeInfo {
+  subtype: string
+  label: string
+  color: string
+}
+
+export const BAND_TYPES: BandTypeInfo[] = [
+  { type: 'speed_limits',    label: 'Ограничения скорости', color: '#ef4444' },
+  { type: 'profile',         label: 'Профиль пути',         color: '#10b981' },
+  { type: 'track_plan',      label: 'План пути',            color: '#f59e0b' },
+  { type: 'traction_modes',  label: 'Режимы тяги',          color: '#a855f7' },
+  { type: 'coordinate_ruler',label: 'Координатная шкала',   color: '#6b7280' },
+]
+
+export const MARK_SUBTYPES: MarkSubtypeInfo[] = [
+  { subtype: 'entry_signal',     label: 'Входной светофор',    color: '#ef4444' },
+  { subtype: 'exit_signal',      label: 'Выходной светофор',   color: '#f97316' },
+  { subtype: 'route_signal',     label: 'Маршрутный светофор', color: '#eab308' },
+  { subtype: 'passing_signal',   label: 'Проходной светофор',  color: '#22c55e' },
+  { subtype: 'crossing_guarded', label: 'Переезд',             color: '#06b6d4' },
+  { subtype: 'neutral_insert',   label: 'Нейтральная вставка', color: '#8b5cf6' },
+  { subtype: 'ktsm',             label: 'КТСМ',                color: '#ec4899' },
+  { subtype: 'uksps',            label: 'УКСПС',               color: '#14b8a6' },
+  { subtype: 'bridge',           label: 'Мост',                color: '#64748b' },
+  { subtype: 'brake_marker',     label: 'Тормозной ориентир',  color: '#dc2626' },
+  { subtype: 'station_axis',     label: 'Ось станции',         color: '#3b82f6' },
 ]

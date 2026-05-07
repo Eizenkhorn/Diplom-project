@@ -2,8 +2,8 @@ import shutil
 import uuid
 from dataclasses import dataclass, field
 
+from models.markup import SessionMarkup
 from models.parsed import ParsedDocument
-from models.region import Region
 
 
 @dataclass
@@ -11,7 +11,7 @@ class Session:
     doc: ParsedDocument
     svg_path: str
     tmpdirs: list[str] = field(default_factory=list)
-    regions: list[Region] = field(default_factory=list)
+    markup: SessionMarkup = field(default_factory=SessionMarkup)
 
 
 sessions: dict[str, Session] = {}

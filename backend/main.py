@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from models.annotation_types import ANNOTATION_TYPES as _ANNOTATION_TYPES
+from models.markup import BandType, HorizontalBand, MarkPoint, SessionMarkup, StationPoint, WorkArea
+from models.markup_types import BAND_TYPES, MARK_SUBTYPES
 from models.parsed import ParsedDocument, ParsedShape
-from models.region import Region
 from parser import parse_visio_file
 from session.store import create_session, get_session
 
@@ -45,21 +45,41 @@ class ShapesPageResponse(BaseModel):
     limit: int
 
 
-class RegionCreate(BaseModel):
-    type: str
+# ── markup request bodies ──────────────────────────────────────────────────────
+
+class BandCreate(BaseModel):
+    type: BandType
+    y_top: float
+    y_bottom: float
+
+
+class BandUpdate(BaseModel):
+    type: BandType | None = None
+    y_top: float | None = None
+    y_bottom: float | None = None
+
+
+class StationCreate(BaseModel):
+    x: float
+    name: str
+
+
+class StationUpdate(BaseModel):
+    x: float | None = None
+    name: str | None = None
+
+
+class MarkCreate(BaseModel):
     x: float
     y: float
-    width: float
-    height: float
+    subtype: str
     meta: dict = {}
 
 
-class RegionUpdate(BaseModel):
-    type: str | None = None
+class MarkUpdate(BaseModel):
     x: float | None = None
     y: float | None = None
-    width: float | None = None
-    height: float | None = None
+    subtype: str | None = None
     meta: dict | None = None
 
 
@@ -160,47 +180,118 @@ def sessions_background(session_id: str) -> FileResponse:
     return FileResponse(session.svg_path, media_type=mime)
 
 
-# ── region endpoints ───────────────────────────────────────────────────────────
+# ── markup endpoints ───────────────────────────────────────────────────────────
 
-@app.get("/api/sessions/{session_id}/regions", response_model=list[Region])
-def regions_list(session_id: str):
-    return _require_session(session_id).regions
+@app.get("/api/sessions/{session_id}/markup", response_model=SessionMarkup)
+def markup_get(session_id: str) -> SessionMarkup:
+    return _require_session(session_id).markup
 
 
-@app.post("/api/sessions/{session_id}/regions", response_model=Region, status_code=201)
-def regions_create(session_id: str, body: RegionCreate) -> Region:
+@app.put("/api/sessions/{session_id}/markup/work-area", response_model=SessionMarkup)
+def markup_set_work_area(session_id: str, body: WorkArea) -> SessionMarkup:
     session = _require_session(session_id)
-    region = Region(id=str(uuid.uuid4()), **body.model_dump())
-    session.regions.append(region)
-    return region
+    session.markup = session.markup.model_copy(update={"work_area": body})
+    return session.markup
 
 
-@app.put("/api/sessions/{session_id}/regions/{region_id}", response_model=Region)
-def regions_update(session_id: str, region_id: str, body: RegionUpdate) -> Region:
+# ── bands ──────────────────────────────────────────────────────────────────────
+
+@app.post("/api/sessions/{session_id}/markup/bands", response_model=HorizontalBand, status_code=201)
+def markup_create_band(session_id: str, body: BandCreate) -> HorizontalBand:
+    session = _require_session(session_id)
+    band = HorizontalBand(id=str(uuid.uuid4()), **body.model_dump())
+    session.markup.bands.append(band)
+    return band
+
+
+@app.put("/api/sessions/{session_id}/markup/bands/{band_id}", response_model=HorizontalBand)
+def markup_update_band(session_id: str, band_id: str, body: BandUpdate) -> HorizontalBand:
     session = _require_session(session_id)
     patch = body.model_dump(exclude_none=True)
-    for i, r in enumerate(session.regions):
-        if r.id == region_id:
-            updated = r.model_copy(update=patch)
-            session.regions[i] = updated
+    for i, b in enumerate(session.markup.bands):
+        if b.id == band_id:
+            updated = b.model_copy(update=patch)
+            session.markup.bands[i] = updated
             return updated
-    raise HTTPException(status_code=404, detail="Region not found")
+    raise HTTPException(status_code=404, detail="Band not found")
 
 
-@app.delete("/api/sessions/{session_id}/regions/{region_id}", status_code=204)
-def regions_delete(session_id: str, region_id: str) -> None:
+@app.delete("/api/sessions/{session_id}/markup/bands/{band_id}", status_code=204)
+def markup_delete_band(session_id: str, band_id: str) -> None:
     session = _require_session(session_id)
-    before = len(session.regions)
-    session.regions = [r for r in session.regions if r.id != region_id]
-    if len(session.regions) == before:
-        raise HTTPException(status_code=404, detail="Region not found")
+    before = len(session.markup.bands)
+    session.markup.bands = [b for b in session.markup.bands if b.id != band_id]
+    if len(session.markup.bands) == before:
+        raise HTTPException(status_code=404, detail="Band not found")
 
 
-# ── annotation types ───────────────────────────────────────────────────────────
+# ── stations ───────────────────────────────────────────────────────────────────
 
-@app.get("/api/annotation-types")
-def annotation_types():
-    return _ANNOTATION_TYPES
+@app.post("/api/sessions/{session_id}/markup/stations", response_model=StationPoint, status_code=201)
+def markup_create_station(session_id: str, body: StationCreate) -> StationPoint:
+    session = _require_session(session_id)
+    station = StationPoint(id=str(uuid.uuid4()), **body.model_dump())
+    session.markup.stations.append(station)
+    return station
+
+
+@app.put("/api/sessions/{session_id}/markup/stations/{station_id}", response_model=StationPoint)
+def markup_update_station(session_id: str, station_id: str, body: StationUpdate) -> StationPoint:
+    session = _require_session(session_id)
+    patch = body.model_dump(exclude_none=True)
+    for i, s in enumerate(session.markup.stations):
+        if s.id == station_id:
+            updated = s.model_copy(update=patch)
+            session.markup.stations[i] = updated
+            return updated
+    raise HTTPException(status_code=404, detail="Station not found")
+
+
+@app.delete("/api/sessions/{session_id}/markup/stations/{station_id}", status_code=204)
+def markup_delete_station(session_id: str, station_id: str) -> None:
+    session = _require_session(session_id)
+    before = len(session.markup.stations)
+    session.markup.stations = [s for s in session.markup.stations if s.id != station_id]
+    if len(session.markup.stations) == before:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+
+# ── marks ──────────────────────────────────────────────────────────────────────
+
+@app.post("/api/sessions/{session_id}/markup/marks", response_model=MarkPoint, status_code=201)
+def markup_create_mark(session_id: str, body: MarkCreate) -> MarkPoint:
+    session = _require_session(session_id)
+    mark = MarkPoint(id=str(uuid.uuid4()), **body.model_dump())
+    session.markup.marks.append(mark)
+    return mark
+
+
+@app.put("/api/sessions/{session_id}/markup/marks/{mark_id}", response_model=MarkPoint)
+def markup_update_mark(session_id: str, mark_id: str, body: MarkUpdate) -> MarkPoint:
+    session = _require_session(session_id)
+    patch = body.model_dump(exclude_none=True)
+    for i, m in enumerate(session.markup.marks):
+        if m.id == mark_id:
+            updated = m.model_copy(update=patch)
+            session.markup.marks[i] = updated
+            return updated
+    raise HTTPException(status_code=404, detail="Mark not found")
+
+
+@app.delete("/api/sessions/{session_id}/markup/marks/{mark_id}", status_code=204)
+def markup_delete_mark(session_id: str, mark_id: str) -> None:
+    session = _require_session(session_id)
+    before = len(session.markup.marks)
+    session.markup.marks = [m for m in session.markup.marks if m.id != mark_id]
+    if len(session.markup.marks) == before:
+        raise HTTPException(status_code=404, detail="Mark not found")
+
+
+# ── markup types справочник ────────────────────────────────────────────────────
+
+@app.get("/api/markup-types")
+def markup_types():
+    return {"bands": BAND_TYPES, "mark_subtypes": MARK_SUBTYPES}
 
 
 # ── export ─────────────────────────────────────────────────────────────────────
@@ -231,7 +322,7 @@ def sessions_export(session_id: str):
         "locomotiveRegimeBands": [],
         "longitudinalForces": [],
         "marks": [],
-        "_regions": [r.model_dump() for r in session.regions],
+        "_markup": session.markup.model_dump(),
     }
 
 
