@@ -681,6 +681,7 @@ export default function MapCanvas() {
                       color={info?.color ?? '#6b7280'}
                       label={info?.label ?? band.type}
                       sub={`y: ${Math.round(band.y_top)}–${Math.round(band.y_bottom)}`}
+                      hint={band.is_informational ? 'не извлекает данные, для ориентации' : undefined}
                       selected={band.id === selectedId}
                       onClick={() => setSelected(band.id === selectedId ? null : band.id)}
                       onDelete={() => deleteBand(band.id)}
@@ -757,6 +758,7 @@ function bandShort(type: BandType): string {
     track_plan:       'План',
     traction_modes:   'Тяга',
     coordinate_ruler: 'КШ',
+    path_schema:      'Схема',
   }
   return map[type]
 }
@@ -787,11 +789,12 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 }
 
 function SideRow({
-  color, label, sub, selected, onClick, onDelete,
+  color, label, sub, hint, selected, onClick, onDelete,
 }: {
   color: string
   label: string
   sub?: string
+  hint?: string
   selected?: boolean
   onClick?: () => void
   onDelete: () => void
@@ -813,6 +816,12 @@ function SideRow({
         </div>
         {sub && (
           <div style={{ fontSize: 10, color: '#94a3b8' }}>{sub}</div>
+        )}
+        {hint && (
+          <div style={{ fontSize: 10, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+            <span style={{ fontWeight: 700, fontSize: 11 }}>ⓘ</span>
+            {hint}
+          </div>
         )}
       </div>
       <button

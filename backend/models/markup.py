@@ -1,10 +1,10 @@
 from typing import Literal, Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
-from models.markup_types import VALID_MARK_SUBTYPES
+from models.markup_types import VALID_MARK_SUBTYPES, INFORMATIONAL_BAND_TYPES
 
-BandType = Literal["speed_limits", "profile", "track_plan", "traction_modes", "coordinate_ruler"]
+BandType = Literal["speed_limits", "profile", "track_plan", "traction_modes", "coordinate_ruler", "path_schema"]
 
 
 class WorkArea(BaseModel):
@@ -18,6 +18,12 @@ class HorizontalBand(BaseModel):
     y_top: float
     y_bottom: float
     extracted: dict[str, Any] = {}
+    is_informational: bool = False
+
+    @model_validator(mode='after')
+    def _derive_informational(self) -> 'HorizontalBand':
+        self.is_informational = self.type in INFORMATIONAL_BAND_TYPES
+        return self
 
 
 class StationPoint(BaseModel):

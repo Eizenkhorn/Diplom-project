@@ -1,11 +1,12 @@
 from typing import Any
 
 BAND_TYPES: list[dict[str, Any]] = [
-    {"type": "speed_limits",    "label": "Ограничения скорости", "color": "#ef4444"},
-    {"type": "profile",         "label": "Профиль пути",         "color": "#10b981"},
-    {"type": "track_plan",      "label": "План пути",            "color": "#f59e0b"},
-    {"type": "traction_modes",  "label": "Режимы тяги",          "color": "#a855f7"},
-    {"type": "coordinate_ruler","label": "Координатная шкала",   "color": "#6b7280"},
+    {"type": "speed_limits",    "label": "Ограничения скорости", "color": "#ef4444",  "is_informational": False},
+    {"type": "profile",         "label": "Профиль пути",         "color": "#10b981",  "is_informational": False},
+    {"type": "track_plan",      "label": "План пути",            "color": "#f59e0b",  "is_informational": False},
+    {"type": "traction_modes",  "label": "Режимы тяги",          "color": "#a855f7",  "is_informational": False},
+    {"type": "coordinate_ruler","label": "Координатная шкала",   "color": "#6b7280",  "is_informational": False},
+    {"type": "path_schema",     "label": "Схема пути",           "color": "#fbbf24",  "is_informational": True},
 ]
 
 MARK_SUBTYPES: list[dict[str, Any]] = [
@@ -23,4 +24,5 @@ MARK_SUBTYPES: list[dict[str, Any]] = [
 ]
 
 VALID_BAND_TYPES: frozenset[str] = frozenset(b["type"] for b in BAND_TYPES)
+INFORMATIONAL_BAND_TYPES: frozenset[str] = frozenset(b["type"] for b in BAND_TYPES if b["is_informational"])
 VALID_MARK_SUBTYPES: frozenset[str] = frozenset(m["subtype"] for m in MARK_SUBTYPES)

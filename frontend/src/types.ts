@@ -26,6 +26,7 @@ export type BandType =
   | 'track_plan'
   | 'traction_modes'
   | 'coordinate_ruler'
+  | 'path_schema'
 
 export interface WorkArea {
   x_start: number
@@ -38,6 +39,7 @@ export interface HorizontalBand {
   y_top: number
   y_bottom: number
   extracted: Record<string, unknown>
+  is_informational: boolean
 }
 
 export interface StationPoint {
@@ -67,6 +69,7 @@ export interface BandTypeInfo {
   type: BandType
   label: string
   color: string
+  is_informational?: boolean
 }
 
 export interface MarkSubtypeInfo {
@@ -81,6 +84,7 @@ export const BAND_TYPES: BandTypeInfo[] = [
   { type: 'track_plan',      label: 'План пути',            color: '#f59e0b' },
   { type: 'traction_modes',  label: 'Режимы тяги',          color: '#a855f7' },
   { type: 'coordinate_ruler',label: 'Координатная шкала',   color: '#6b7280' },
+  { type: 'path_schema',     label: 'Схема пути',           color: '#fbbf24', is_informational: true },
 ]
 
 export const MARK_SUBTYPES: MarkSubtypeInfo[] = [
