@@ -1,0 +1,66 @@
+INFO:     Will watch for changes in these directories: ['C:\\Diplom\\backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [9496] using WatchFiles
+INFO:     Started server process [11584]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:parser.vsdx_parser:Page: 14016.8\xd7793.7 px  (146.008\xd78.268 in)  display_unit=MM
+INFO:parser.vsdx_parser:Parsed 15991 shapes total, 352 groups
+WARNING:  WatchFiles detected changes in 'parser\vsd_converter.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [11584]
+WARNING:  WatchFiles detected changes in 'main.py', 'parser\__init__.py', 'tests\test_parser.py'. Reloading...
+INFO:     Started server process [3080]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3080]
+INFO:     Started server process [9396]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'tests\test_parser.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9396]
+INFO:     Started server process [16920]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'parser\vsd_converter.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [16920]
+WARNING:  WatchFiles detected changes in 'parser\odg_parser.py', 'parser\__init__.py'. Reloading...
+INFO:     Started server process [1016]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1016]
+INFO:     Started server process [5408]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'session\__init__.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5408]
+WARNING:  WatchFiles detected changes in 'main.py', 'session\store.py'. Reloading...
+INFO:     Started server process [11996]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [11996]
+INFO:     Started server process [13756]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:parser.vsdx_parser:Page: 14016.8\xd7793.7 px  (146.008\xd78.268 in)  display_unit=MM
+INFO:parser.vsdx_parser:Parsed 15991 shapes total, 352 groups

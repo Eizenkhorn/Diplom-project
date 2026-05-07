@@ -1,0 +1,5 @@
+INFO:     127.0.0.1:62811 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62977 - "POST /api/parse HTTP/1.1" 200 OK
+       INFO:     127.0.0.1:64889 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64896 - "POST /api/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53229 - "GET /api/sessions/cee2264f-1d68-4f39-87c6-e68cb3350364/shapes?offset=0&limit=3 HTTP/1.1" 200 OK
