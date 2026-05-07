@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, Fragment } from 'react'
-import { Stage, Layer, Rect, Text, Image as KonvaImage, Transformer } from 'react-konva'
+import { Stage, Layer, Rect, Text, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { useSessionStore } from '../store/session'
 import { useRegionsStore } from '../store/regions'
@@ -23,21 +23,12 @@ export default function MapCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [scale, setScale] = useState(1)
   const [pos, setPos] = useState({ x: 0, y: 0 })
-  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null)
   const [drawState, setDrawState] = useState<DrawState | null>(null)
   const [typePicker, setTypePicker] = useState<TypePickerState | null>(null)
-
-  // Load SVG/PNG background
-  useEffect(() => {
-    if (!svgUrl) { setBgImage(null); return }
-    const img = new window.Image()
-    img.src = svgUrl
-    img.onload = () => setBgImage(img)
-    img.onerror = () => setBgImage(null)
-  }, [svgUrl])
 
   // Measure canvas container
   useEffect(() => {
@@ -50,12 +41,28 @@ export default function MapCanvas() {
     return () => ro.disconnect()
   }, [])
 
+  // Direct DOM mutation — bypasses React render cycle for smooth 60fps pan/zoom
+  const applyImgTransform = useCallback((x: number, y: number, s: number) => {
+    const img = imgRef.current
+    if (!img) return
+    img.style.transform = `translate(${x}px, ${y}px) scale(${s})`
+  }, [])
+
+  // Safety-net: re-sync when pos/scale change via state (e.g., session restore, initial fit)
+  // Also re-fires when svgUrl changes so the freshly-mounted <img> gets the right transform
+  useEffect(() => {
+    applyImgTransform(pos.x, pos.y, scale)
+  }, [pos.x, pos.y, scale, svgUrl, applyImgTransform])
+
   const fitToScreen = useCallback(() => {
     if (!pageWidth || !pageHeight || !size.w || !size.h) return
     const s = Math.min(size.w / pageWidth, size.h / pageHeight) * 0.95
+    const x = (size.w - pageWidth * s) / 2
+    const y = (size.h - pageHeight * s) / 2
     setScale(s)
-    setPos({ x: (size.w - pageWidth * s) / 2, y: (size.h - pageHeight * s) / 2 })
-  }, [pageWidth, pageHeight, size])
+    setPos({ x, y })
+    applyImgTransform(x, y, s)
+  }, [pageWidth, pageHeight, size, applyImgTransform])
 
   const fittedKey = useRef('')
   useEffect(() => {
@@ -116,15 +123,23 @@ export default function MapCanvas() {
     const newY = pointer.y - (pointer.y - stage.y()) * (newScale / oldScale)
     setScale(newScale)
     setPos({ x: newX, y: newY })
-  }, [])
+    applyImgTransform(newX, newY, newScale)
+  }, [applyImgTransform])
+
+  // Live sync during pan drag — direct DOM mutation, no React re-render
+  const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    applyImgTransform(e.target.x(), e.target.y(), (e.target as Konva.Stage).scaleX())
+  }, [applyImgTransform])
 
   const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    setPos({ x: e.target.x(), y: e.target.y() })
-  }, [])
+    const x = e.target.x()
+    const y = e.target.y()
+    setPos({ x, y })
+    applyImgTransform(x, y, (e.target as Konva.Stage).scaleX())
+  }, [applyImgTransform])
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (mode !== 'draw') return
-    // Only start drawing on the stage background, not on existing regions
     if (e.target !== stageRef.current) return
     const stage = stageRef.current!
     const p = stage.getRelativePointerPosition()!
@@ -146,7 +161,6 @@ export default function MapCanvas() {
     if (w > 8 && h > 8) {
       const x = Math.min(drawState.startX, drawState.curX)
       const y = Math.min(drawState.startY, drawState.curY)
-      // Screen position for the type picker: bottom-left of the drawn rect
       const screenX = x * scale + pos.x
       const screenY = (y + h) * scale + pos.y
       setTypePicker({ rect: { x, y, w, h }, screenX, screenY })
@@ -177,7 +191,6 @@ export default function MapCanvas() {
       const sy = node.scaleY()
       const newW = Math.max(Math.abs(node.width() * sx), 1)
       const newH = Math.max(Math.abs(node.height() * sy), 1)
-      // Bake scale into dimensions, reset transform
       node.scaleX(1)
       node.scaleY(1)
       node.width(newW)
@@ -203,8 +216,6 @@ export default function MapCanvas() {
     },
     [typePicker, createRegion],
   )
-
-  // ── sidebar region deletion ───────────────────────────────────────────────
 
   const handleDeleteRegion = useCallback(
     (id: string) => deleteRegion(id),
@@ -241,8 +252,7 @@ export default function MapCanvas() {
 
   // ── canvas cursor ─────────────────────────────────────────────────────────
 
-  const cursor =
-    mode === 'draw' ? (drawState ? 'crosshair' : 'crosshair') : mode === 'pan' ? 'grab' : 'default'
+  const cursor = mode === 'draw' ? 'crosshair' : mode === 'pan' ? 'grab' : 'default'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -332,8 +342,30 @@ export default function MapCanvas() {
           ref={containerRef}
           style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e2e8f0', cursor }}
         >
+          {/* SVG background — browser renders it natively as vector, crisp at any zoom level */}
+          {svgUrl && (
+            <img
+              ref={imgRef}
+              src={svgUrl}
+              width={pageWidth}
+              height={pageHeight}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                transformOrigin: '0 0',
+                willChange: 'transform',
+                userSelect: 'none',
+                pointerEvents: 'none',
+              }}
+              alt=""
+            />
+          )}
+
+          {/* Konva Stage — transparent canvas for regions only */}
           <Stage
             ref={stageRef}
+            style={{ position: 'absolute', top: 0, left: 0 }}
             width={size.w || 1}
             height={size.h || 1}
             x={pos.x}
@@ -342,21 +374,13 @@ export default function MapCanvas() {
             scaleY={scale}
             draggable={mode === 'pan'}
             onWheel={handleWheel}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onClick={handleStageClick}
           >
-            {/* Background layer */}
-            <Layer listening={false}>
-              <Rect x={0} y={0} width={pageWidth} height={pageHeight} fill="white" shadowEnabled={false} />
-              {bgImage && (
-                <KonvaImage image={bgImage} x={0} y={0} width={pageWidth} height={pageHeight} />
-              )}
-            </Layer>
-
-            {/* Regions layer */}
             <Layer>
               {regions.map((region) => {
                 const typeInfo = ANNOTATION_TYPES.find((t) => t.type === region.type)
@@ -525,7 +549,31 @@ export default function MapCanvas() {
             </span>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          {/* Draw-mode hint: description of the active drawType */}
+          {mode === 'draw' && (() => {
+            const info = ANNOTATION_TYPES.find((t) => t.type === drawType)
+            if (!info) return null
+            return (
+              <div
+                style={{
+                  margin: '10px 10px 0',
+                  padding: '8px 10px',
+                  borderRadius: 7,
+                  background: info.color + '18',
+                  borderLeft: `3px solid ${info.color}`,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 600, color: info.color, marginBottom: 3 }}>
+                  {info.label}
+                </div>
+                <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.4 }}>
+                  {info.description}
+                </div>
+              </div>
+            )
+          })()}
+
+          <div style={{ flex: 1, overflowY: 'auto', marginTop: mode === 'draw' ? 10 : 0 }}>
             {regions.length === 0 ? (
               <div style={{ padding: '24px 14px', fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
                 Переключитесь в Draw и нарисуйте регион
@@ -624,4 +672,3 @@ export default function MapCanvas() {
     </div>
   )
 }
-

@@ -11,8 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from models.annotation_types import ANNOTATION_TYPES as _ANNOTATION_TYPES
 from models.parsed import ParsedDocument, ParsedShape
-from models.region import Region, RegionType
+from models.region import Region
 from parser import parse_visio_file
 from session.store import create_session, get_session
 
@@ -45,7 +46,7 @@ class ShapesPageResponse(BaseModel):
 
 
 class RegionCreate(BaseModel):
-    type: RegionType
+    type: str
     x: float
     y: float
     width: float
@@ -54,7 +55,7 @@ class RegionCreate(BaseModel):
 
 
 class RegionUpdate(BaseModel):
-    type: RegionType | None = None
+    type: str | None = None
     x: float | None = None
     y: float | None = None
     width: float | None = None
@@ -199,14 +200,7 @@ def regions_delete(session_id: str, region_id: str) -> None:
 
 @app.get("/api/annotation-types")
 def annotation_types():
-    return [
-        {"type": "profile", "label": "Профиль пути", "color": "#10b981"},
-        {"type": "speed_limit", "label": "Ограничения скорости", "color": "#ef4444"},
-        {"type": "station", "label": "Станции", "color": "#3b82f6"},
-        {"type": "coordinate_ruler", "label": "Координатная шкала", "color": "#a855f7"},
-        {"type": "track_plan", "label": "План пути", "color": "#f59e0b"},
-        {"type": "other", "label": "Прочее", "color": "#6b7280"},
-    ]
+    return _ANNOTATION_TYPES
 
 
 # ── export ─────────────────────────────────────────────────────────────────────

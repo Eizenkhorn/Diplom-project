@@ -29,7 +29,7 @@ export const useRegionsStore = create<RegionsState>()((set, get) => ({
   regions: [],
   selectedId: null,
   mode: 'pan',
-  drawType: 'profile',
+  drawType: 'speed_limits',
 
   loadRegions: async (sessionId) => {
     const regions = await apiGetRegions(sessionId)
