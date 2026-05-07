@@ -1,16 +1,30 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
-import { Stage, Layer, Rect, Text } from 'react-konva'
+import { Stage, Layer, Rect, Text, Image as KonvaImage } from 'react-konva'
 import type Konva from 'konva'
 import { useSessionStore } from '../store/session'
 
 export default function MapCanvas() {
-  const { pageWidth, pageHeight, shapes, shapesTotal, loading, fileName } = useSessionStore()
+  const { pageWidth, pageHeight, shapes, shapesTotal, loading, fileName, svgUrl } = useSessionStore()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [scale, setScale] = useState(1)
   const [pos, setPos] = useState({ x: 0, y: 0 })
+  const [showBboxes, setShowBboxes] = useState(false)
+  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null)
+
+  // Load SVG background image
+  useEffect(() => {
+    if (!svgUrl) {
+      setBgImage(null)
+      return
+    }
+    const img = new window.Image()
+    img.src = svgUrl
+    img.onload = () => setBgImage(img)
+    img.onerror = () => setBgImage(null)
+  }, [svgUrl])
 
   // Measure canvas container
   useEffect(() => {
@@ -48,7 +62,6 @@ export default function MapCanvas() {
     const oldScale = stage.scaleX()
     const newScale = Math.min(20, Math.max(0.05, oldScale * factor))
     const pointer = stage.getPointerPosition()!
-    // Keep the document point under the cursor fixed
     const newX = pointer.x - (pointer.x - stage.x()) * (newScale / oldScale)
     const newY = pointer.y - (pointer.y - stage.y()) * (newScale / oldScale)
     setScale(newScale)
@@ -59,7 +72,7 @@ export default function MapCanvas() {
     setPos({ x: e.target.x(), y: e.target.y() })
   }, [])
 
-  // Build Konva elements once per shapes update — no dependency on scale/pos
+  // Build Konva bbox elements once per shapes update
   const shapeElements = useMemo(() => {
     const nodes: React.ReactNode[] = []
     for (const s of shapes) {
@@ -76,15 +89,15 @@ export default function MapCanvas() {
           offsetX={ew / 2}
           offsetY={eh / 2}
           rotation={s.rotation}
-          stroke="#334155"
-          strokeWidth={1}
+          fill="rgba(0,0,0,0.008)"
+          stroke={showBboxes ? '#334155' : undefined}
+          strokeWidth={showBboxes ? 1 : 0}
           strokeScaleEnabled={false}
-          fill=""
+          listening={true}
           perfectDrawEnabled={false}
-          listening={false}
         />,
       )
-      if (s.text && s.width > 20) {
+      if (showBboxes && s.text && s.width > 20) {
         nodes.push(
           <Text
             key={`t${s.id}`}
@@ -102,7 +115,7 @@ export default function MapCanvas() {
       }
     }
     return nodes
-  }, [shapes])
+  }, [shapes, showBboxes])
 
   const progressText =
     loading && shapesTotal > 0
@@ -139,6 +152,15 @@ export default function MapCanvas() {
             {shapes.length.toLocaleString('ru')} объектов
           </span>
         )}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={showBboxes}
+            onChange={(e) => setShowBboxes(e.target.checked)}
+            style={{ cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 11, color: '#94a3b8', userSelect: 'none' }}>Bbox</span>
+        </label>
         <button
           onClick={fitToScreen}
           style={{
@@ -184,6 +206,18 @@ export default function MapCanvas() {
               shadowEnabled={false}
               listening={false}
             />
+            {/* SVG background image */}
+            {bgImage && (
+              <KonvaImage
+                image={bgImage}
+                x={0}
+                y={0}
+                width={pageWidth}
+                height={pageHeight}
+                listening={false}
+              />
+            )}
+            {/* Interactive bbox overlay */}
             {shapeElements}
           </Layer>
         </Stage>

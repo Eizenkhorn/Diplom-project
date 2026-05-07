@@ -9,8 +9,9 @@ interface SessionState {
   shapesTotal: number
   loading: boolean
   fileName: string | null
+  svgUrl: string | null
   error: string | null
-  setSession: (id: string, w: number, h: number, total: number, name: string) => void
+  setSession: (id: string, w: number, h: number, total: number, name: string, svgUrl: string | null) => void
   setError: (e: string | null) => void
   loadShapes: (sessionId: string, total: number) => Promise<void>
 }
@@ -23,10 +24,11 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   shapesTotal: 0,
   loading: false,
   fileName: null,
+  svgUrl: null,
   error: null,
 
-  setSession: (id, w, h, total, name) =>
-    set({ sessionId: id, pageWidth: w, pageHeight: h, shapesTotal: total, fileName: name, shapes: [], error: null }),
+  setSession: (id, w, h, total, name, svgUrl) =>
+    set({ sessionId: id, pageWidth: w, pageHeight: h, shapesTotal: total, fileName: name, svgUrl, shapes: [], error: null }),
 
   setError: (e) => set({ error: e, loading: false }),
 
@@ -36,7 +38,6 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     let offset = 0
     try {
       while (offset < total) {
-        // Abort if a new session was opened while loading
         if (get().sessionId !== sessionId) return
         const res = await fetch(
           `/api/sessions/${sessionId}/shapes?offset=${offset}&limit=${BATCH}`,

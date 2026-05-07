@@ -14,8 +14,7 @@ export default function FileUpload() {
       setLocalError(null)
       try {
         const meta = await createSession(file)
-        setSession(meta.session_id, meta.page_width, meta.page_height, meta.shape_count, file.name)
-        // fire-and-forget: store tracks loading state
+        setSession(meta.session_id, meta.page_width, meta.page_height, meta.shape_count, file.name, meta.svg_url)
         loadShapes(meta.session_id, meta.shape_count)
       } catch (e) {
         setLocalError(e instanceof Error ? e.message : String(e))

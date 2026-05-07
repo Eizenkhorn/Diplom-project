@@ -1,0 +1,2948 @@
+{
+  "locomotives": [],
+  "cars": [],
+  "canvasLayers": [],
+  "trackPlan": [],
+  "optimalSpeedCurve": [],
+  "speedCurve": [],
+  "optimalRegimeBands": [],
+  "locomotiveRegimeBands": [],
+  "longitudinalForces": [],
+  "marks": [],
+  "metadata": {
+    "id": "nsi-2-1777374155909",
+    "name": "Златоуст-Кропачево",
+    "createdAt": "2026-04-28T11:02:35.909Z",
+    "updatedAt": "2026-04-28T11:02:43.941Z"
+  },
+  "coordinateRuler": {
+    "segments": [
+      {
+        "startCoordinate": 1943,
+        "endCoordinate": 1782,
+        "adjustments": []
+      }
+    ]
+  },
+  "stations": [
+    {
+      "name": "Златоуст",
+      "coordinate": 1940400,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1940400,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Аносово",
+      "coordinate": 1928500,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1928500,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Ай",
+      "coordinate": 1922700,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1922700,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Тундуш",
+      "coordinate": 1909600,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1909600,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Бердяуш",
+      "coordinate": 1889100,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1889100,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Сулея",
+      "coordinate": 1865500,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1865500,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Кукшик",
+      "coordinate": 1852980,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1852980,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Мурсалимкино",
+      "coordinate": 1839850,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1839850,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Вязовая",
+      "coordinate": 1816650,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1816650,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Усть-Катав",
+      "coordinate": 1802950,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1802950,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Яхино",
+      "coordinate": 1787980,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1787980,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    },
+    {
+      "name": "Кропачево",
+      "coordinate": 1781800,
+      "graphical": {
+        "layerPosition": 0,
+        "coordinate": 1781800,
+        "horizontalOffset": 0,
+        "verticalPositionPercent": 50,
+        "fontSize": 11,
+        "fontColor": "#374151",
+        "lineHeight": 14,
+        "rotation": 0,
+        "objectColor": "#1d4ed8"
+      }
+    }
+  ],
+  "profile": [
+    {
+      "start": 0,
+      "end": 840,
+      "angle": -8.3
+    },
+    {
+      "start": 840,
+      "end": 1050,
+      "angle": -0.1
+    },
+    {
+      "start": 1050,
+      "end": 1260,
+      "angle": 11.3
+    },
+    {
+      "start": 1260,
+      "end": 1440,
+      "angle": 8.4
+    },
+    {
+      "start": 1440,
+      "end": 1640,
+      "angle": 10.8
+    },
+    {
+      "start": 1640,
+      "end": 1830,
+      "angle": 7.9
+    },
+    {
+      "start": 1830,
+      "end": 2020,
+      "angle": 10.1
+    },
+    {
+      "start": 2020,
+      "end": 2390,
+      "angle": 2.5
+    },
+    {
+      "start": 2390,
+      "end": 3090,
+      "angle": 0.9
+    },
+    {
+      "start": 3090,
+      "end": 3200,
+      "angle": 1.2
+    },
+    {
+      "start": 3200,
+      "end": 3460,
+      "angle": 2.5
+    },
+    {
+      "start": 3460,
+      "end": 3600,
+      "angle": 8
+    },
+    {
+      "start": 3600,
+      "end": 3800,
+      "angle": -6.2
+    },
+    {
+      "start": 3800,
+      "end": 4020,
+      "angle": -8
+    },
+    {
+      "start": 4020,
+      "end": 4340,
+      "angle": -10.3
+    },
+    {
+      "start": 4340,
+      "end": 4600,
+      "angle": -7.3
+    },
+    {
+      "start": 4600,
+      "end": 4800,
+      "angle": -9.4
+    },
+    {
+      "start": 4800,
+      "end": 5020,
+      "angle": -12.4
+    },
+    {
+      "start": 5020,
+      "end": 5510,
+      "angle": -10.1
+    },
+    {
+      "start": 5510,
+      "end": 5700,
+      "angle": -8.9
+    },
+    {
+      "start": 5700,
+      "end": 6100,
+      "angle": -9.9
+    },
+    {
+      "start": 6100,
+      "end": 6410,
+      "angle": -9.5
+    },
+    {
+      "start": 6410,
+      "end": 6800,
+      "angle": -12
+    },
+    {
+      "start": 6800,
+      "end": 7040,
+      "angle": -9.6
+    },
+    {
+      "start": 7040,
+      "end": 7440,
+      "angle": -11
+    },
+    {
+      "start": 7440,
+      "end": 7670,
+      "angle": -4.4
+    },
+    {
+      "start": 7670,
+      "end": 7900,
+      "angle": -3
+    },
+    {
+      "start": 7900,
+      "end": 8130,
+      "angle": -2.5
+    },
+    {
+      "start": 8130,
+      "end": 8500,
+      "angle": -4.5
+    },
+    {
+      "start": 8500,
+      "end": 8700,
+      "angle": -8.5
+    },
+    {
+      "start": 8700,
+      "end": 8900,
+      "angle": -10.4
+    },
+    {
+      "start": 8900,
+      "end": 9020,
+      "angle": -8.9
+    },
+    {
+      "start": 9020,
+      "end": 9200,
+      "angle": -8.5
+    },
+    {
+      "start": 9200,
+      "end": 9600,
+      "angle": -10.2
+    },
+    {
+      "start": 9600,
+      "end": 9840,
+      "angle": -1.5
+    },
+    {
+      "start": 9840,
+      "end": 10050,
+      "angle": 1
+    },
+    {
+      "start": 10050,
+      "end": 10210,
+      "angle": 11.1
+    },
+    {
+      "start": 10210,
+      "end": 10700,
+      "angle": 1.5
+    },
+    {
+      "start": 10700,
+      "end": 11100,
+      "angle": -8.8
+    },
+    {
+      "start": 11100,
+      "end": 11300,
+      "angle": -1.7
+    },
+    {
+      "start": 11300,
+      "end": 11660,
+      "angle": -9
+    },
+    {
+      "start": 11660,
+      "end": 11970,
+      "angle": -10.6
+    },
+    {
+      "start": 11970,
+      "end": 12300,
+      "angle": -9.7
+    },
+    {
+      "start": 12300,
+      "end": 12500,
+      "angle": -5.2
+    },
+    {
+      "start": 12500,
+      "end": 12700,
+      "angle": 2.9
+    },
+    {
+      "start": 12700,
+      "end": 13000,
+      "angle": 3.8
+    },
+    {
+      "start": 13000,
+      "end": 13250,
+      "angle": 5.1
+    },
+    {
+      "start": 13250,
+      "end": 13590,
+      "angle": -9.3
+    },
+    {
+      "start": 13590,
+      "end": 13840,
+      "angle": -8
+    },
+    {
+      "start": 13840,
+      "end": 14030,
+      "angle": 1.4
+    },
+    {
+      "start": 14030,
+      "end": 14350,
+      "angle": 1
+    },
+    {
+      "start": 14350,
+      "end": 14550,
+      "angle": -1.2
+    },
+    {
+      "start": 14550,
+      "end": 15160,
+      "angle": -2.1
+    },
+    {
+      "start": 15160,
+      "end": 15370,
+      "angle": -9.3
+    },
+    {
+      "start": 15370,
+      "end": 15560,
+      "angle": -1.8
+    },
+    {
+      "start": 15560,
+      "end": 15760,
+      "angle": -3
+    },
+    {
+      "start": 15760,
+      "end": 15970,
+      "angle": -5.3
+    },
+    {
+      "start": 15970,
+      "end": 16200,
+      "angle": -3
+    },
+    {
+      "start": 16200,
+      "end": 16650,
+      "angle": -2.3
+    },
+    {
+      "start": 16650,
+      "end": 16880,
+      "angle": 0.4
+    },
+    {
+      "start": 16880,
+      "end": 17150,
+      "angle": 0
+    },
+    {
+      "start": 17150,
+      "end": 17350,
+      "angle": 2.3
+    },
+    {
+      "start": 17350,
+      "end": 17850,
+      "angle": 9.3
+    },
+    {
+      "start": 17850,
+      "end": 18100,
+      "angle": 1.2
+    },
+    {
+      "start": 18100,
+      "end": 18700,
+      "angle": 1.4
+    },
+    {
+      "start": 18700,
+      "end": 19030,
+      "angle": -5.1
+    },
+    {
+      "start": 19030,
+      "end": 19240,
+      "angle": -10.7
+    },
+    {
+      "start": 19240,
+      "end": 19500,
+      "angle": -6.8
+    },
+    {
+      "start": 19500,
+      "end": 19700,
+      "angle": -10.7
+    },
+    {
+      "start": 19700,
+      "end": 20010,
+      "angle": -1.4
+    },
+    {
+      "start": 20010,
+      "end": 20550,
+      "angle": -1.6
+    },
+    {
+      "start": 20550,
+      "end": 20800,
+      "angle": 0
+    },
+    {
+      "start": 20800,
+      "end": 21050,
+      "angle": 6.4
+    },
+    {
+      "start": 21050,
+      "end": 21250,
+      "angle": 12.3
+    },
+    {
+      "start": 21250,
+      "end": 21700,
+      "angle": 8.2
+    },
+    {
+      "start": 21700,
+      "end": 21900,
+      "angle": 9.2
+    },
+    {
+      "start": 21900,
+      "end": 22150,
+      "angle": 0
+    },
+    {
+      "start": 22150,
+      "end": 22420,
+      "angle": -7.1
+    },
+    {
+      "start": 22420,
+      "end": 22610,
+      "angle": 0
+    },
+    {
+      "start": 22610,
+      "end": 22950,
+      "angle": 7.3
+    },
+    {
+      "start": 22950,
+      "end": 23150,
+      "angle": 10.7
+    },
+    {
+      "start": 23150,
+      "end": 23300,
+      "angle": 1.7
+    },
+    {
+      "start": 23300,
+      "end": 23500,
+      "angle": 10.1
+    },
+    {
+      "start": 23500,
+      "end": 23700,
+      "angle": -0.4
+    },
+    {
+      "start": 23700,
+      "end": 23900,
+      "angle": 13.9
+    },
+    {
+      "start": 23900,
+      "end": 24150,
+      "angle": 5.1
+    },
+    {
+      "start": 24150,
+      "end": 24360,
+      "angle": 6.8
+    },
+    {
+      "start": 24360,
+      "end": 24570,
+      "angle": 9.9
+    },
+    {
+      "start": 24570,
+      "end": 24800,
+      "angle": 5.4
+    },
+    {
+      "start": 24800,
+      "end": 25200,
+      "angle": 9.6
+    },
+    {
+      "start": 25200,
+      "end": 25450,
+      "angle": 8.7
+    },
+    {
+      "start": 25450,
+      "end": 25700,
+      "angle": 9.1
+    },
+    {
+      "start": 25700,
+      "end": 26100,
+      "angle": 0
+    },
+    {
+      "start": 26100,
+      "end": 26350,
+      "angle": -1.9
+    },
+    {
+      "start": 26350,
+      "end": 26790,
+      "angle": -10.2
+    },
+    {
+      "start": 26790,
+      "end": 27000,
+      "angle": -9.9
+    },
+    {
+      "start": 27000,
+      "end": 27350,
+      "angle": -6.6
+    },
+    {
+      "start": 27350,
+      "end": 27600,
+      "angle": -9.7
+    },
+    {
+      "start": 27600,
+      "end": 27800,
+      "angle": -11.6
+    },
+    {
+      "start": 27800,
+      "end": 28050,
+      "angle": -10.4
+    },
+    {
+      "start": 28050,
+      "end": 28300,
+      "angle": -8.8
+    },
+    {
+      "start": 28300,
+      "end": 28700,
+      "angle": -10.4
+    },
+    {
+      "start": 28700,
+      "end": 29000,
+      "angle": -8.2
+    },
+    {
+      "start": 29000,
+      "end": 29300,
+      "angle": -11.8
+    },
+    {
+      "start": 29300,
+      "end": 29600,
+      "angle": -8.9
+    },
+    {
+      "start": 29600,
+      "end": 29800,
+      "angle": -7.3
+    },
+    {
+      "start": 29800,
+      "end": 30000,
+      "angle": -9.5
+    },
+    {
+      "start": 30000,
+      "end": 30250,
+      "angle": -12
+    },
+    {
+      "start": 30250,
+      "end": 30450,
+      "angle": 1.4
+    },
+    {
+      "start": 30450,
+      "end": 30900,
+      "angle": 12.4
+    },
+    {
+      "start": 30900,
+      "end": 31300,
+      "angle": 6.5
+    },
+    {
+      "start": 31300,
+      "end": 31550,
+      "angle": 7.6
+    },
+    {
+      "start": 31550,
+      "end": 31800,
+      "angle": 10.2
+    },
+    {
+      "start": 31800,
+      "end": 32100,
+      "angle": 9.3
+    },
+    {
+      "start": 32100,
+      "end": 32400,
+      "angle": 9.6
+    },
+    {
+      "start": 32400,
+      "end": 32600,
+      "angle": 9.1
+    },
+    {
+      "start": 32600,
+      "end": 32840,
+      "angle": 11
+    },
+    {
+      "start": 32840,
+      "end": 33350,
+      "angle": 3.2
+    },
+    {
+      "start": 33350,
+      "end": 33850,
+      "angle": 1.7
+    },
+    {
+      "start": 33850,
+      "end": 34040,
+      "angle": 12.4
+    },
+    {
+      "start": 34040,
+      "end": 34400,
+      "angle": 7
+    },
+    {
+      "start": 34400,
+      "end": 34650,
+      "angle": 10.4
+    },
+    {
+      "start": 34650,
+      "end": 35340,
+      "angle": 8
+    },
+    {
+      "start": 35340,
+      "end": 35590,
+      "angle": 10.1
+    },
+    {
+      "start": 35590,
+      "end": 36000,
+      "angle": 8.1
+    },
+    {
+      "start": 36000,
+      "end": 36820,
+      "angle": 8.6
+    },
+    {
+      "start": 36820,
+      "end": 37140,
+      "angle": 8.2
+    },
+    {
+      "start": 37140,
+      "end": 37550,
+      "angle": 10
+    },
+    {
+      "start": 37550,
+      "end": 37950,
+      "angle": 6.6
+    },
+    {
+      "start": 37950,
+      "end": 38400,
+      "angle": 9.3
+    },
+    {
+      "start": 38400,
+      "end": 39000,
+      "angle": 9
+    },
+    {
+      "start": 39000,
+      "end": 39390,
+      "angle": 7.4
+    },
+    {
+      "start": 39390,
+      "end": 39850,
+      "angle": 6.1
+    },
+    {
+      "start": 39850,
+      "end": 40100,
+      "angle": 0
+    },
+    {
+      "start": 40100,
+      "end": 40340,
+      "angle": 1.8
+    },
+    {
+      "start": 40340,
+      "end": 40600,
+      "angle": 8.4
+    },
+    {
+      "start": 40600,
+      "end": 40950,
+      "angle": 7.9
+    },
+    {
+      "start": 40950,
+      "end": 41200,
+      "angle": 8.7
+    },
+    {
+      "start": 41200,
+      "end": 41350,
+      "angle": 10.5
+    },
+    {
+      "start": 41350,
+      "end": 41640,
+      "angle": 9.8
+    },
+    {
+      "start": 41640,
+      "end": 42100,
+      "angle": 9.3
+    },
+    {
+      "start": 42100,
+      "end": 42340,
+      "angle": 10.3
+    },
+    {
+      "start": 42340,
+      "end": 42700,
+      "angle": 8.3
+    },
+    {
+      "start": 42700,
+      "end": 43000,
+      "angle": 1.1
+    },
+    {
+      "start": 43000,
+      "end": 43200,
+      "angle": -9.7
+    },
+    {
+      "start": 43200,
+      "end": 43460,
+      "angle": -12.3
+    },
+    {
+      "start": 43460,
+      "end": 43700,
+      "angle": -10.8
+    },
+    {
+      "start": 43700,
+      "end": 44000,
+      "angle": -9.2
+    },
+    {
+      "start": 44000,
+      "end": 44250,
+      "angle": -11.7
+    },
+    {
+      "start": 44250,
+      "end": 44550,
+      "angle": -8.3
+    },
+    {
+      "start": 44550,
+      "end": 45050,
+      "angle": -11
+    },
+    {
+      "start": 45050,
+      "end": 45800,
+      "angle": -9.1
+    },
+    {
+      "start": 45800,
+      "end": 46000,
+      "angle": -11.9
+    },
+    {
+      "start": 46000,
+      "end": 46300,
+      "angle": -10.3
+    },
+    {
+      "start": 46300,
+      "end": 46500,
+      "angle": -7.8
+    },
+    {
+      "start": 46500,
+      "end": 46750,
+      "angle": -12
+    },
+    {
+      "start": 46750,
+      "end": 46950,
+      "angle": -6.1
+    },
+    {
+      "start": 46950,
+      "end": 47150,
+      "angle": -12.1
+    },
+    {
+      "start": 47150,
+      "end": 47400,
+      "angle": -9.2
+    },
+    {
+      "start": 47400,
+      "end": 47660,
+      "angle": -11.8
+    },
+    {
+      "start": 47660,
+      "end": 48000,
+      "angle": -5.3
+    },
+    {
+      "start": 48000,
+      "end": 48200,
+      "angle": -2
+    },
+    {
+      "start": 48200,
+      "end": 48600,
+      "angle": -8.8
+    },
+    {
+      "start": 48600,
+      "end": 48800,
+      "angle": -11
+    },
+    {
+      "start": 48800,
+      "end": 49150,
+      "angle": -7
+    },
+    {
+      "start": 49150,
+      "end": 49500,
+      "angle": -11.8
+    },
+    {
+      "start": 49500,
+      "end": 49700,
+      "angle": -7.3
+    },
+    {
+      "start": 49700,
+      "end": 49900,
+      "angle": -9.2
+    },
+    {
+      "start": 49900,
+      "end": 50150,
+      "angle": -6.7
+    },
+    {
+      "start": 50150,
+      "end": 50550,
+      "angle": -11
+    },
+    {
+      "start": 50550,
+      "end": 50850,
+      "angle": -5.4
+    },
+    {
+      "start": 50850,
+      "end": 51100,
+      "angle": -12.7
+    },
+    {
+      "start": 51100,
+      "end": 51460,
+      "angle": -9.6
+    },
+    {
+      "start": 51460,
+      "end": 51750,
+      "angle": -10
+    },
+    {
+      "start": 51750,
+      "end": 51950,
+      "angle": -4.3
+    },
+    {
+      "start": 51950,
+      "end": 52150,
+      "angle": -1.9
+    },
+    {
+      "start": 52150,
+      "end": 52450,
+      "angle": -9.9
+    },
+    {
+      "start": 52450,
+      "end": 52750,
+      "angle": -4.8
+    },
+    {
+      "start": 52750,
+      "end": 53400,
+      "angle": -2.9
+    },
+    {
+      "start": 53400,
+      "end": 53600,
+      "angle": -1.9
+    },
+    {
+      "start": 53600,
+      "end": 54000,
+      "angle": -2
+    },
+    {
+      "start": 54000,
+      "end": 54100,
+      "angle": -1.9
+    },
+    {
+      "start": 54100,
+      "end": 54900,
+      "angle": -2.6
+    },
+    {
+      "start": 54900,
+      "end": 55190,
+      "angle": -6.5
+    },
+    {
+      "start": 55190,
+      "end": 55600,
+      "angle": -3.5
+    },
+    {
+      "start": 55600,
+      "end": 55800,
+      "angle": -4.6
+    },
+    {
+      "start": 55800,
+      "end": 56100,
+      "angle": -2.8
+    },
+    {
+      "start": 56100,
+      "end": 56300,
+      "angle": -0.3
+    },
+    {
+      "start": 56300,
+      "end": 56500,
+      "angle": -1
+    },
+    {
+      "start": 56500,
+      "end": 56700,
+      "angle": 2.5
+    },
+    {
+      "start": 56700,
+      "end": 57000,
+      "angle": 0.6
+    },
+    {
+      "start": 57000,
+      "end": 57400,
+      "angle": 9.6
+    },
+    {
+      "start": 57400,
+      "end": 57600,
+      "angle": 0.9
+    },
+    {
+      "start": 57600,
+      "end": 57900,
+      "angle": 0.7
+    },
+    {
+      "start": 57900,
+      "end": 58300,
+      "angle": 2.2
+    },
+    {
+      "start": 58300,
+      "end": 58500,
+      "angle": 1.3
+    },
+    {
+      "start": 58500,
+      "end": 58750,
+      "angle": 2
+    },
+    {
+      "start": 58750,
+      "end": 58950,
+      "angle": -11
+    },
+    {
+      "start": 58950,
+      "end": 59200,
+      "angle": 1.3
+    },
+    {
+      "start": 59200,
+      "end": 59740,
+      "angle": 7.6
+    },
+    {
+      "start": 59740,
+      "end": 59950,
+      "angle": 0.5
+    },
+    {
+      "start": 59950,
+      "end": 60250,
+      "angle": 12.7
+    },
+    {
+      "start": 60250,
+      "end": 60800,
+      "angle": 8
+    },
+    {
+      "start": 60800,
+      "end": 61000,
+      "angle": 9.5
+    },
+    {
+      "start": 61000,
+      "end": 61400,
+      "angle": 8
+    },
+    {
+      "start": 61400,
+      "end": 61900,
+      "angle": 8.4
+    },
+    {
+      "start": 61900,
+      "end": 62100,
+      "angle": 7.6
+    },
+    {
+      "start": 62100,
+      "end": 62300,
+      "angle": 8.8
+    },
+    {
+      "start": 62300,
+      "end": 62640,
+      "angle": 9.7
+    },
+    {
+      "start": 62640,
+      "end": 62900,
+      "angle": 5.1
+    },
+    {
+      "start": 62900,
+      "end": 63200,
+      "angle": 7.5
+    },
+    {
+      "start": 63200,
+      "end": 63740,
+      "angle": 9.6
+    },
+    {
+      "start": 63740,
+      "end": 64100,
+      "angle": 8.5
+    },
+    {
+      "start": 64100,
+      "end": 64300,
+      "angle": 7.5
+    },
+    {
+      "start": 64300,
+      "end": 64630,
+      "angle": 9
+    },
+    {
+      "start": 64630,
+      "end": 64950,
+      "angle": 7.8
+    },
+    {
+      "start": 64950,
+      "end": 65250,
+      "angle": 2.4
+    },
+    {
+      "start": 65250,
+      "end": 65550,
+      "angle": -5.9
+    },
+    {
+      "start": 65550,
+      "end": 65800,
+      "angle": -1.6
+    },
+    {
+      "start": 65800,
+      "end": 66300,
+      "angle": 7
+    },
+    {
+      "start": 66300,
+      "end": 66540,
+      "angle": 1.7
+    },
+    {
+      "start": 66540,
+      "end": 66750,
+      "angle": -0.8
+    },
+    {
+      "start": 66750,
+      "end": 67000,
+      "angle": -3.7
+    },
+    {
+      "start": 67000,
+      "end": 67500,
+      "angle": 0.5
+    },
+    {
+      "start": 67500,
+      "end": 67800,
+      "angle": -1.9
+    },
+    {
+      "start": 67800,
+      "end": 68050,
+      "angle": -7.7
+    },
+    {
+      "start": 68050,
+      "end": 68250,
+      "angle": -1.1
+    },
+    {
+      "start": 68250,
+      "end": 68500,
+      "angle": 4.7
+    },
+    {
+      "start": 68500,
+      "end": 68950,
+      "angle": 1.5
+    },
+    {
+      "start": 68950,
+      "end": 69300,
+      "angle": 1.9
+    },
+    {
+      "start": 69300,
+      "end": 69540,
+      "angle": 7.9
+    },
+    {
+      "start": 69540,
+      "end": 69840,
+      "angle": 9
+    },
+    {
+      "start": 69840,
+      "end": 70200,
+      "angle": 0
+    },
+    {
+      "start": 70200,
+      "end": 70440,
+      "angle": -4.7
+    },
+    {
+      "start": 70440,
+      "end": 70650,
+      "angle": 0.5
+    },
+    {
+      "start": 70650,
+      "end": 70940,
+      "angle": 9.2
+    },
+    {
+      "start": 70940,
+      "end": 71500,
+      "angle": 4.6
+    },
+    {
+      "start": 71500,
+      "end": 71700,
+      "angle": -3.5
+    },
+    {
+      "start": 71700,
+      "end": 71950,
+      "angle": -10.1
+    },
+    {
+      "start": 71950,
+      "end": 72250,
+      "angle": -11.4
+    },
+    {
+      "start": 72250,
+      "end": 72500,
+      "angle": -10.4
+    },
+    {
+      "start": 72500,
+      "end": 72930,
+      "angle": -8.3
+    },
+    {
+      "start": 72930,
+      "end": 73150,
+      "angle": -1.5
+    },
+    {
+      "start": 73150,
+      "end": 73500,
+      "angle": 0.5
+    },
+    {
+      "start": 73500,
+      "end": 73750,
+      "angle": -7.9
+    },
+    {
+      "start": 73750,
+      "end": 74150,
+      "angle": -2
+    },
+    {
+      "start": 74150,
+      "end": 74590,
+      "angle": -6.8
+    },
+    {
+      "start": 74590,
+      "end": 75040,
+      "angle": -0.5
+    },
+    {
+      "start": 75040,
+      "end": 75600,
+      "angle": -7.7
+    },
+    {
+      "start": 75600,
+      "end": 75800,
+      "angle": -1.7
+    },
+    {
+      "start": 75800,
+      "end": 76100,
+      "angle": 1.2
+    },
+    {
+      "start": 76100,
+      "end": 76550,
+      "angle": -0.7
+    },
+    {
+      "start": 76550,
+      "end": 76850,
+      "angle": 1.1
+    },
+    {
+      "start": 76850,
+      "end": 77350,
+      "angle": -6.7
+    },
+    {
+      "start": 77350,
+      "end": 77950,
+      "angle": -0.6
+    },
+    {
+      "start": 77950,
+      "end": 78140,
+      "angle": -3.9
+    },
+    {
+      "start": 78140,
+      "end": 78450,
+      "angle": -7.5
+    },
+    {
+      "start": 78450,
+      "end": 78650,
+      "angle": -10.8
+    },
+    {
+      "start": 78650,
+      "end": 79000,
+      "angle": -7
+    },
+    {
+      "start": 79000,
+      "end": 79140,
+      "angle": -6.5
+    },
+    {
+      "start": 79140,
+      "end": 79300,
+      "angle": 1.3
+    },
+    {
+      "start": 79300,
+      "end": 79600,
+      "angle": 10.4
+    },
+    {
+      "start": 79600,
+      "end": 80600,
+      "angle": 7.3
+    },
+    {
+      "start": 80600,
+      "end": 81200,
+      "angle": 8.5
+    },
+    {
+      "start": 81200,
+      "end": 81500,
+      "angle": 6.3
+    },
+    {
+      "start": 81500,
+      "end": 81700,
+      "angle": 9.4
+    },
+    {
+      "start": 81700,
+      "end": 82140,
+      "angle": 7.3
+    },
+    {
+      "start": 82140,
+      "end": 82500,
+      "angle": 9.4
+    },
+    {
+      "start": 82500,
+      "end": 82810,
+      "angle": 1.6
+    },
+    {
+      "start": 82810,
+      "end": 83100,
+      "angle": -4.9
+    },
+    {
+      "start": 83100,
+      "end": 83300,
+      "angle": -0.9
+    },
+    {
+      "start": 83300,
+      "end": 83530,
+      "angle": 9.5
+    },
+    {
+      "start": 83530,
+      "end": 84300,
+      "angle": 8.3
+    },
+    {
+      "start": 84300,
+      "end": 84500,
+      "angle": 7.7
+    },
+    {
+      "start": 84500,
+      "end": 84820,
+      "angle": 9.1
+    },
+    {
+      "start": 84820,
+      "end": 85150,
+      "angle": 7.6
+    },
+    {
+      "start": 85150,
+      "end": 85350,
+      "angle": 10
+    },
+    {
+      "start": 85350,
+      "end": 85700,
+      "angle": 8.2
+    },
+    {
+      "start": 85700,
+      "end": 86040,
+      "angle": 8.9
+    },
+    {
+      "start": 86040,
+      "end": 86300,
+      "angle": 6.8
+    },
+    {
+      "start": 86300,
+      "end": 86640,
+      "angle": 9.8
+    },
+    {
+      "start": 86640,
+      "end": 87030,
+      "angle": 8.1
+    },
+    {
+      "start": 87030,
+      "end": 87250,
+      "angle": 9.7
+    },
+    {
+      "start": 87250,
+      "end": 87450,
+      "angle": 8
+    },
+    {
+      "start": 87450,
+      "end": 87700,
+      "angle": -5.7
+    },
+    {
+      "start": 87700,
+      "end": 88000,
+      "angle": 1.6
+    },
+    {
+      "start": 88000,
+      "end": 88300,
+      "angle": -10.2
+    },
+    {
+      "start": 88300,
+      "end": 89500,
+      "angle": -9.9
+    },
+    {
+      "start": 89500,
+      "end": 89700,
+      "angle": -3.8
+    },
+    {
+      "start": 89700,
+      "end": 90250,
+      "angle": -1.4
+    },
+    {
+      "start": 90250,
+      "end": 90500,
+      "angle": -2.4
+    },
+    {
+      "start": 90500,
+      "end": 91000,
+      "angle": -8.7
+    },
+    {
+      "start": 91000,
+      "end": 91200,
+      "angle": -6
+    },
+    {
+      "start": 91200,
+      "end": 91550,
+      "angle": 1.1
+    },
+    {
+      "start": 91550,
+      "end": 91900,
+      "angle": -0.1
+    },
+    {
+      "start": 91900,
+      "end": 92100,
+      "angle": -6
+    },
+    {
+      "start": 92100,
+      "end": 92400,
+      "angle": -11.3
+    },
+    {
+      "start": 92400,
+      "end": 92600,
+      "angle": -8.8
+    },
+    {
+      "start": 92600,
+      "end": 93150,
+      "angle": -10.3
+    },
+    {
+      "start": 93150,
+      "end": 93550,
+      "angle": -7.1
+    },
+    {
+      "start": 93550,
+      "end": 94390,
+      "angle": -9.7
+    },
+    {
+      "start": 94390,
+      "end": 94900,
+      "angle": -10.4
+    },
+    {
+      "start": 94900,
+      "end": 95200,
+      "angle": -8.9
+    },
+    {
+      "start": 95200,
+      "end": 95400,
+      "angle": -10.8
+    },
+    {
+      "start": 95400,
+      "end": 95700,
+      "angle": -9.1
+    },
+    {
+      "start": 95700,
+      "end": 95900,
+      "angle": -0.7
+    },
+    {
+      "start": 95900,
+      "end": 96100,
+      "angle": -4.9
+    },
+    {
+      "start": 96100,
+      "end": 96450,
+      "angle": -0.1
+    },
+    {
+      "start": 96450,
+      "end": 96650,
+      "angle": -2.1
+    },
+    {
+      "start": 96650,
+      "end": 97040,
+      "angle": 1.8
+    },
+    {
+      "start": 97040,
+      "end": 97700,
+      "angle": -9.8
+    },
+    {
+      "start": 97700,
+      "end": 98150,
+      "angle": -11.2
+    },
+    {
+      "start": 98150,
+      "end": 98450,
+      "angle": -0.5
+    },
+    {
+      "start": 98450,
+      "end": 99200,
+      "angle": -9.9
+    },
+    {
+      "start": 99200,
+      "end": 99440,
+      "angle": -12.8
+    },
+    {
+      "start": 99440,
+      "end": 99700,
+      "angle": -8.7
+    },
+    {
+      "start": 99700,
+      "end": 99950,
+      "angle": 1.9
+    },
+    {
+      "start": 99950,
+      "end": 100150,
+      "angle": -5.1
+    },
+    {
+      "start": 100150,
+      "end": 100350,
+      "angle": -9.6
+    },
+    {
+      "start": 100350,
+      "end": 100500,
+      "angle": 1.3
+    },
+    {
+      "start": 100500,
+      "end": 100740,
+      "angle": 7.3
+    },
+    {
+      "start": 100740,
+      "end": 101250,
+      "angle": 8.5
+    },
+    {
+      "start": 101250,
+      "end": 101500,
+      "angle": 5.6
+    },
+    {
+      "start": 101500,
+      "end": 101700,
+      "angle": 8.2
+    },
+    {
+      "start": 101700,
+      "end": 101900,
+      "angle": 9.4
+    },
+    {
+      "start": 101900,
+      "end": 102100,
+      "angle": 8.3
+    },
+    {
+      "start": 102100,
+      "end": 102340,
+      "angle": 6.8
+    },
+    {
+      "start": 102340,
+      "end": 102600,
+      "angle": -2.1
+    },
+    {
+      "start": 102600,
+      "end": 103250,
+      "angle": 0.6
+    },
+    {
+      "start": 103250,
+      "end": 104100,
+      "angle": 11.8
+    },
+    {
+      "start": 104100,
+      "end": 104550,
+      "angle": 0.9
+    },
+    {
+      "start": 104550,
+      "end": 105100,
+      "angle": 7.7
+    },
+    {
+      "start": 105100,
+      "end": 105650,
+      "angle": 8
+    },
+    {
+      "start": 105650,
+      "end": 105900,
+      "angle": 4.1
+    },
+    {
+      "start": 105900,
+      "end": 106140,
+      "angle": 5.8
+    },
+    {
+      "start": 106140,
+      "end": 106540,
+      "angle": 9.9
+    },
+    {
+      "start": 106540,
+      "end": 106900,
+      "angle": 8.9
+    },
+    {
+      "start": 106900,
+      "end": 107300,
+      "angle": 8
+    },
+    {
+      "start": 107300,
+      "end": 108400,
+      "angle": 8.4
+    },
+    {
+      "start": 108400,
+      "end": 109040,
+      "angle": 9
+    },
+    {
+      "start": 109040,
+      "end": 109400,
+      "angle": 7.6
+    },
+    {
+      "start": 109400,
+      "end": 110150,
+      "angle": 1.9
+    },
+    {
+      "start": 110150,
+      "end": 110550,
+      "angle": -2.7
+    },
+    {
+      "start": 110550,
+      "end": 110750,
+      "angle": 2.3
+    },
+    {
+      "start": 110750,
+      "end": 111150,
+      "angle": 9.1
+    },
+    {
+      "start": 111150,
+      "end": 111600,
+      "angle": 6.8
+    },
+    {
+      "start": 111600,
+      "end": 111880,
+      "angle": 7.8
+    },
+    {
+      "start": 111880,
+      "end": 112250,
+      "angle": 0.4
+    },
+    {
+      "start": 112250,
+      "end": 112640,
+      "angle": 7.9
+    },
+    {
+      "start": 112640,
+      "end": 113050,
+      "angle": 0.4
+    },
+    {
+      "start": 113050,
+      "end": 113350,
+      "angle": 2.3
+    },
+    {
+      "start": 113350,
+      "end": 113550,
+      "angle": -1.3
+    },
+    {
+      "start": 113550,
+      "end": 114000,
+      "angle": -10.8
+    },
+    {
+      "start": 114000,
+      "end": 114350,
+      "angle": -9.8
+    },
+    {
+      "start": 114350,
+      "end": 114750,
+      "angle": -6.2
+    },
+    {
+      "start": 114750,
+      "end": 115000,
+      "angle": -6
+    },
+    {
+      "start": 115000,
+      "end": 115500,
+      "angle": -6.4
+    },
+    {
+      "start": 115500,
+      "end": 115700,
+      "angle": -8.2
+    },
+    {
+      "start": 115700,
+      "end": 115900,
+      "angle": -6.7
+    },
+    {
+      "start": 115900,
+      "end": 116300,
+      "angle": -8.8
+    },
+    {
+      "start": 116300,
+      "end": 116500,
+      "angle": -11.6
+    },
+    {
+      "start": 116500,
+      "end": 116700,
+      "angle": -9.8
+    },
+    {
+      "start": 116700,
+      "end": 116900,
+      "angle": -11.8
+    },
+    {
+      "start": 116900,
+      "end": 117100,
+      "angle": -8
+    },
+    {
+      "start": 117100,
+      "end": 117300,
+      "angle": -10.3
+    },
+    {
+      "start": 117300,
+      "end": 118250,
+      "angle": -9.5
+    },
+    {
+      "start": 118250,
+      "end": 118550,
+      "angle": -2.6
+    },
+    {
+      "start": 118550,
+      "end": 118900,
+      "angle": -9.6
+    },
+    {
+      "start": 118900,
+      "end": 119390,
+      "angle": -8.8
+    },
+    {
+      "start": 119390,
+      "end": 119900,
+      "angle": -9.5
+    },
+    {
+      "start": 119900,
+      "end": 120100,
+      "angle": -10.7
+    },
+    {
+      "start": 120100,
+      "end": 120310,
+      "angle": -9.7
+    },
+    {
+      "start": 120310,
+      "end": 120700,
+      "angle": -12.2
+    },
+    {
+      "start": 120700,
+      "end": 121000,
+      "angle": -7.5
+    },
+    {
+      "start": 121000,
+      "end": 121300,
+      "angle": -9.2
+    },
+    {
+      "start": 121300,
+      "end": 121600,
+      "angle": -11.8
+    },
+    {
+      "start": 121600,
+      "end": 121800,
+      "angle": -9.7
+    },
+    {
+      "start": 121800,
+      "end": 121900,
+      "angle": -13.6
+    },
+    {
+      "start": 121900,
+      "end": 122200,
+      "angle": -6.2
+    },
+    {
+      "start": 122200,
+      "end": 122500,
+      "angle": -10.2
+    },
+    {
+      "start": 122500,
+      "end": 122700,
+      "angle": -2.1
+    },
+    {
+      "start": 122700,
+      "end": 122900,
+      "angle": -10.7
+    },
+    {
+      "start": 122900,
+      "end": 123300,
+      "angle": -7.8
+    },
+    {
+      "start": 123300,
+      "end": 123500,
+      "angle": -10.7
+    },
+    {
+      "start": 123500,
+      "end": 123750,
+      "angle": -11.2
+    },
+    {
+      "start": 123750,
+      "end": 124000,
+      "angle": -6.6
+    },
+    {
+      "start": 124000,
+      "end": 124200,
+      "angle": -7.3
+    },
+    {
+      "start": 124200,
+      "end": 124450,
+      "angle": -4.5
+    },
+    {
+      "start": 124450,
+      "end": 124800,
+      "angle": -8.1
+    },
+    {
+      "start": 124800,
+      "end": 125000,
+      "angle": -5
+    },
+    {
+      "start": 125000,
+      "end": 125340,
+      "angle": 1
+    },
+    {
+      "start": 125340,
+      "end": 125600,
+      "angle": -0.7
+    },
+    {
+      "start": 125600,
+      "end": 126000,
+      "angle": 1.4
+    },
+    {
+      "start": 126000,
+      "end": 126200,
+      "angle": 2
+    },
+    {
+      "start": 126200,
+      "end": 126600,
+      "angle": -0.5
+    },
+    {
+      "start": 126600,
+      "end": 126950,
+      "angle": 1.5
+    },
+    {
+      "start": 126950,
+      "end": 127140,
+      "angle": -6.2
+    },
+    {
+      "start": 127140,
+      "end": 127700,
+      "angle": -0.4
+    },
+    {
+      "start": 127700,
+      "end": 127900,
+      "angle": -2.1
+    },
+    {
+      "start": 127900,
+      "end": 128150,
+      "angle": 1
+    },
+    {
+      "start": 128150,
+      "end": 128500,
+      "angle": 1.8
+    },
+    {
+      "start": 128500,
+      "end": 128700,
+      "angle": 0.2
+    },
+    {
+      "start": 128700,
+      "end": 129100,
+      "angle": -5.4
+    },
+    {
+      "start": 129100,
+      "end": 129390,
+      "angle": -4.6
+    },
+    {
+      "start": 129390,
+      "end": 130390,
+      "angle": 1.5
+    },
+    {
+      "start": 130390,
+      "end": 130650,
+      "angle": -3.8
+    },
+    {
+      "start": 130650,
+      "end": 131340,
+      "angle": -2.6
+    },
+    {
+      "start": 131340,
+      "end": 131550,
+      "angle": 3.7
+    },
+    {
+      "start": 131550,
+      "end": 131790,
+      "angle": -1.1
+    },
+    {
+      "start": 131790,
+      "end": 132100,
+      "angle": -2.9
+    },
+    {
+      "start": 132100,
+      "end": 132350,
+      "angle": 0.5
+    },
+    {
+      "start": 132350,
+      "end": 132650,
+      "angle": 8.5
+    },
+    {
+      "start": 132650,
+      "end": 132850,
+      "angle": 1.6
+    },
+    {
+      "start": 132850,
+      "end": 133140,
+      "angle": -2.7
+    },
+    {
+      "start": 133140,
+      "end": 133450,
+      "angle": 5
+    },
+    {
+      "start": 133450,
+      "end": 133700,
+      "angle": -9.3
+    },
+    {
+      "start": 133700,
+      "end": 134050,
+      "angle": -8
+    },
+    {
+      "start": 134050,
+      "end": 134390,
+      "angle": -1.7
+    },
+    {
+      "start": 134390,
+      "end": 134800,
+      "angle": -2.5
+    },
+    {
+      "start": 134800,
+      "end": 135400,
+      "angle": -1
+    },
+    {
+      "start": 135400,
+      "end": 135900,
+      "angle": 0.8
+    },
+    {
+      "start": 135900,
+      "end": 136150,
+      "angle": 10
+    },
+    {
+      "start": 136150,
+      "end": 136500,
+      "angle": 1.1
+    },
+    {
+      "start": 136500,
+      "end": 136700,
+      "angle": -0.7
+    },
+    {
+      "start": 136700,
+      "end": 137200,
+      "angle": 0.7
+    },
+    {
+      "start": 137200,
+      "end": 137800,
+      "angle": -7.3
+    },
+    {
+      "start": 137800,
+      "end": 138000,
+      "angle": -3.2
+    },
+    {
+      "start": 138000,
+      "end": 138240,
+      "angle": 0
+    },
+    {
+      "start": 138240,
+      "end": 138800,
+      "angle": 7.9
+    },
+    {
+      "start": 138800,
+      "end": 139200,
+      "angle": -0.5
+    },
+    {
+      "start": 139200,
+      "end": 139600,
+      "angle": -7.9
+    },
+    {
+      "start": 139600,
+      "end": 140200,
+      "angle": 0.8
+    },
+    {
+      "start": 140200,
+      "end": 140500,
+      "angle": 0.1
+    },
+    {
+      "start": 140500,
+      "end": 140900,
+      "angle": -4.7
+    },
+    {
+      "start": 140900,
+      "end": 141100,
+      "angle": 1.7
+    },
+    {
+      "start": 141100,
+      "end": 141400,
+      "angle": 3.2
+    },
+    {
+      "start": 141400,
+      "end": 141700,
+      "angle": -2.3
+    },
+    {
+      "start": 141700,
+      "end": 142030,
+      "angle": -4.1
+    },
+    {
+      "start": 142030,
+      "end": 142400,
+      "angle": -1.9
+    },
+    {
+      "start": 142400,
+      "end": 142600,
+      "angle": -0.3
+    },
+    {
+      "start": 142600,
+      "end": 142800,
+      "angle": -2.7
+    },
+    {
+      "start": 142800,
+      "end": 143000,
+      "angle": 3.1
+    },
+    {
+      "start": 143000,
+      "end": 143300,
+      "angle": 1.3
+    },
+    {
+      "start": 143300,
+      "end": 143870,
+      "angle": -2.1
+    },
+    {
+      "start": 143870,
+      "end": 144150,
+      "angle": 2.8
+    },
+    {
+      "start": 144150,
+      "end": 144350,
+      "angle": -2.1
+    },
+    {
+      "start": 144350,
+      "end": 145200,
+      "angle": 0.4
+    },
+    {
+      "start": 145200,
+      "end": 145600,
+      "angle": 11.5
+    },
+    {
+      "start": 145600,
+      "end": 145750,
+      "angle": 2.2
+    },
+    {
+      "start": 145750,
+      "end": 146050,
+      "angle": -8.2
+    },
+    {
+      "start": 146050,
+      "end": 146250,
+      "angle": 2.2
+    },
+    {
+      "start": 146250,
+      "end": 146600,
+      "angle": 9.9
+    },
+    {
+      "start": 146600,
+      "end": 146800,
+      "angle": 5.5
+    },
+    {
+      "start": 146800,
+      "end": 147000,
+      "angle": 8.4
+    },
+    {
+      "start": 147000,
+      "end": 147200,
+      "angle": 6.9
+    },
+    {
+      "start": 147200,
+      "end": 147500,
+      "angle": 4.1
+    },
+    {
+      "start": 147500,
+      "end": 147800,
+      "angle": 11
+    },
+    {
+      "start": 147800,
+      "end": 148200,
+      "angle": 7.2
+    },
+    {
+      "start": 148200,
+      "end": 148400,
+      "angle": 0.7
+    },
+    {
+      "start": 148400,
+      "end": 148800,
+      "angle": 8.1
+    },
+    {
+      "start": 148800,
+      "end": 149000,
+      "angle": 10.7
+    },
+    {
+      "start": 149000,
+      "end": 149500,
+      "angle": 8
+    },
+    {
+      "start": 149500,
+      "end": 149800,
+      "angle": 9
+    },
+    {
+      "start": 149800,
+      "end": 149950,
+      "angle": 3.1
+    },
+    {
+      "start": 149950,
+      "end": 150100,
+      "angle": 15.1
+    },
+    {
+      "start": 150100,
+      "end": 150300,
+      "angle": 7.7
+    },
+    {
+      "start": 150300,
+      "end": 150600,
+      "angle": 10
+    },
+    {
+      "start": 150600,
+      "end": 150790,
+      "angle": 7.6
+    },
+    {
+      "start": 150790,
+      "end": 151000,
+      "angle": 8.3
+    },
+    {
+      "start": 151000,
+      "end": 151200,
+      "angle": 6.1
+    },
+    {
+      "start": 151200,
+      "end": 151700,
+      "angle": 8.3
+    },
+    {
+      "start": 151700,
+      "end": 151900,
+      "angle": 5.5
+    },
+    {
+      "start": 151900,
+      "end": 152100,
+      "angle": 11.2
+    },
+    {
+      "start": 152100,
+      "end": 152500,
+      "angle": 7.2
+    },
+    {
+      "start": 152500,
+      "end": 152800,
+      "angle": 4.2
+    },
+    {
+      "start": 152800,
+      "end": 152950,
+      "angle": 11.2
+    },
+    {
+      "start": 152950,
+      "end": 153190,
+      "angle": 5.4
+    },
+    {
+      "start": 153190,
+      "end": 153700,
+      "angle": 9.2
+    },
+    {
+      "start": 153700,
+      "end": 153940,
+      "angle": -1
+    },
+    {
+      "start": 153940,
+      "end": 154300,
+      "angle": 0.3
+    },
+    {
+      "start": 154300,
+      "end": 154540,
+      "angle": 4.2
+    },
+    {
+      "start": 154540,
+      "end": 155400,
+      "angle": 0.4
+    },
+    {
+      "start": 155400,
+      "end": 155640,
+      "angle": 8.8
+    },
+    {
+      "start": 155640,
+      "end": 155900,
+      "angle": 3.4
+    },
+    {
+      "start": 155900,
+      "end": 156100,
+      "angle": 7.2
+    },
+    {
+      "start": 156100,
+      "end": 156300,
+      "angle": 9
+    },
+    {
+      "start": 156300,
+      "end": 156700,
+      "angle": 8.5
+    },
+    {
+      "start": 156700,
+      "end": 157100,
+      "angle": 5.3
+    },
+    {
+      "start": 157100,
+      "end": 157300,
+      "angle": 7.7
+    },
+    {
+      "start": 157300,
+      "end": 157500,
+      "angle": 5.7
+    },
+    {
+      "start": 157500,
+      "end": 157600,
+      "angle": -4.2
+    },
+    {
+      "start": 157600,
+      "end": 157790,
+      "angle": 2
+    },
+    {
+      "start": 157790,
+      "end": 158100,
+      "angle": 7.2
+    },
+    {
+      "start": 158100,
+      "end": 158390,
+      "angle": 10.8
+    },
+    {
+      "start": 158390,
+      "end": 158700,
+      "angle": 5.7
+    },
+    {
+      "start": 158700,
+      "end": 159000,
+      "angle": 10.7
+    },
+    {
+      "start": 159000,
+      "end": 159300,
+      "angle": 9.9
+    },
+    {
+      "start": 159300,
+      "end": 159630,
+      "angle": 10.6
+    },
+    {
+      "start": 159630,
+      "end": 159850,
+      "angle": 3.8
+    },
+    {
+      "start": 159850,
+      "end": 160340,
+      "angle": 13.9
+    },
+    {
+      "start": 160340,
+      "end": 160700,
+      "angle": 5.3
+    },
+    {
+      "start": 160700,
+      "end": 161000,
+      "angle": 2.3
+    },
+    {
+      "start": 161000,
+      "end": 161450,
+      "angle": 1
+    },
+    {
+      "start": 161450,
+      "end": 161700,
+      "angle": -0.1
+    },
+    {
+      "start": 161700,
+      "end": 162000,
+      "angle": -0.4
+    }
+  ],
+  "speedLimits": [
+    {
+      "start": 1940900,
+      "end": 1939100,
+      "limit": 45,
+      "type": "track_category"
+    },
+    {
+      "start": 1939000,
+      "end": 1935700,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1935600,
+      "end": 1928800,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1928700,
+      "end": 1911100,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1911000,
+      "end": 1910800,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1910700,
+      "end": 1907200,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1907100,
+      "end": 1897500,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1897400,
+      "end": 1894400,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1894300,
+      "end": 1893200,
+      "limit": 65,
+      "type": "track_category"
+    },
+    {
+      "start": 1893100,
+      "end": 1890200,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1890100,
+      "end": 1888800,
+      "limit": 55,
+      "type": "track_category"
+    },
+    {
+      "start": 1888700,
+      "end": 1885000,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1884900,
+      "end": 1884500,
+      "limit": 45,
+      "type": "track_category"
+    },
+    {
+      "start": 1884400,
+      "end": 1883300,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1883200,
+      "end": 1873500,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1873400,
+      "end": 1865000,
+      "limit": 80,
+      "type": "track_category"
+    },
+    {
+      "start": 1864900,
+      "end": 1862200,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1862100,
+      "end": 1859200,
+      "limit": 75,
+      "type": "track_category"
+    },
+    {
+      "start": 1859100,
+      "end": 1858000,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1857900,
+      "end": 1852700,
+      "limit": 80,
+      "type": "track_category"
+    },
+    {
+      "start": 1852600,
+      "end": 1850500,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1850400,
+      "end": 1838300,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1838100,
+      "end": 1836900,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1836800,
+      "end": 1829400,
+      "limit": 80,
+      "type": "track_category"
+    },
+    {
+      "start": 1829300,
+      "end": 1828000,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1827900,
+      "end": 1826000,
+      "limit": 75,
+      "type": "track_category"
+    },
+    {
+      "start": 1825900,
+      "end": 1822300,
+      "limit": 80,
+      "type": "track_category"
+    },
+    {
+      "start": 1822200,
+      "end": 1817600,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1817500,
+      "end": 1817300,
+      "limit": 65,
+      "type": "track_category"
+    },
+    {
+      "start": 1817100,
+      "end": 1814200,
+      "limit": 65,
+      "type": "track_category"
+    },
+    {
+      "start": 1814000,
+      "end": 1813600,
+      "limit": 65,
+      "type": "track_category"
+    },
+    {
+      "start": 1813500,
+      "end": 1803300,
+      "limit": 70,
+      "type": "track_category"
+    },
+    {
+      "start": 1803200,
+      "end": 1798800,
+      "limit": 60,
+      "type": "track_category"
+    },
+    {
+      "start": 1798700,
+      "end": 1797900,
+      "limit": 65,
+      "type": "track_category"
+    },
+    {
+      "start": 1797800,
+      "end": 1781100,
+      "limit": 60,
+      "type": "track_category"
+    }
+  ]
+}

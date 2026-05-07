@@ -13,13 +13,15 @@ SAMPLES = pathlib.Path(__file__).parent.parent.parent / "samples"
 VSDX_FILE = SAMPLES / "Кропачево-Дема Visio.vsdx"
 VSD_FILE = SAMPLES / "Златоуст-Кропачево Visio (2).vsd"
 
+
 def _libreoffice_available() -> bool:
     try:
-        from parser.vsd_converter import _find_soffice
+        from parser.visio_converter import _find_soffice
         _find_soffice()
         return True
     except RuntimeError:
         return False
+
 
 _LIBREOFFICE_AVAILABLE = _libreoffice_available()
 
@@ -83,7 +85,7 @@ def test_dimensions_non_negative(doc: ParsedDocument):
 def test_vsd_conversion_and_parse():
     assert VSD_FILE.exists(), f"Sample .vsd not found: {VSD_FILE}"
 
-    doc, tmpdir = parse_visio_file(str(VSD_FILE))
+    doc, svg_path, tmpdirs = parse_visio_file(str(VSD_FILE))
 
     try:
         assert doc.page_width > 0, "page_width must be positive"
@@ -100,6 +102,5 @@ def test_vsd_conversion_and_parse():
         ]
         assert bad_coords == [], f"Non-finite coords in .vsd shapes: {bad_coords[:10]}"
     finally:
-        if tmpdir:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-            assert not os.path.exists(tmpdir), "Converter tmpdir should be deleted by test"
+        for d in tmpdirs:
+            shutil.rmtree(d, ignore_errors=True)

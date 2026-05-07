@@ -5,6 +5,7 @@ export interface SessionCreateResponse {
   page_width: number
   page_height: number
   shape_count: number
+  svg_url: string | null
 }
 
 async function _checkOk(res: Response) {
