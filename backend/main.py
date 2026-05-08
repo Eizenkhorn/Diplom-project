@@ -18,7 +18,7 @@ from parser import parse_visio_file
 from session.store import create_session, get_session
 from extractors.coordinate_ruler import extract_coordinate_ruler, CoordinateMapping
 from extractors.profile import extract_profile
-from extractors.speed_limits import extract_speed_limits
+from extractors.speed_limits import extract_speed_limits, _is_red
 from extractors.stations import extract_stations
 
 logging.basicConfig(level=logging.INFO)
@@ -422,7 +422,7 @@ def _run_extraction(session_id: str) -> dict:
     }
 
     return {
-        "_extraction_log": extraction_log,
+        "extraction_log": extraction_log,
         "metadata": {
             "id": f"nsi-2-{ts}",
             "name": doc_name,
@@ -467,16 +467,97 @@ def sessions_extract(session_id: str):
 
 @app.get("/api/sessions/{session_id}/export")
 def sessions_export(session_id: str):
-    """Same as extract but omits the internal _extraction_log field."""
+    """Run extractors and return the full JSON including extraction_log."""
     try:
-        result = _run_extraction(session_id)
+        return _run_extraction(session_id)
     except HTTPException:
         raise
     except Exception as exc:
         _log.exception("Export failed for session %s", session_id)
         raise HTTPException(status_code=500, detail=f"Export error: {exc}") from exc
-    result.pop("_extraction_log", None)
-    return result
+
+
+# ── debug: shapes inside a band ───────────────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/debug-shapes")
+def debug_shapes(
+    session_id: str,
+    in_band: str = Query("speed_limits", description="Band type to inspect"),
+) -> dict:
+    """Return all shapes whose center-Y falls inside the first band of the given type.
+
+    Useful for diagnosing why extractors don't find what they should:
+    - Are shapes in the band at all?
+    - Do they have line_color / fill_color?
+    - Which ones are red-ish?
+    """
+    session = _require_session(session_id)
+    markup = session.markup
+    shapes = session.doc.shapes
+
+    bands = [b for b in markup.bands if b.type == in_band]
+    if not bands:
+        return {
+            "error": f"No band of type '{in_band}' found. Marked bands: {[b.type for b in markup.bands]}",
+            "shapes": [],
+        }
+    band = bands[0]
+    wa = markup.work_area
+
+    result: list[dict] = []
+    for s in shapes:
+        cy = s.y + s.height / 2
+        cx = s.x + s.width / 2
+        if not (band.y_top <= cy <= band.y_bottom):
+            continue
+        in_wa = wa is None or (wa.x_start <= cx <= wa.x_end)
+        result.append({
+            "id": s.id,
+            "shape_type": s.shape_type,
+            "x": round(s.x, 1),
+            "y": round(s.y, 1),
+            "width": round(s.width, 1),
+            "height": round(s.height, 1),
+            "text": s.text,
+            "line_color": s.line_color,
+            "fill_color": s.fill_color,
+            "is_red": _is_red(s.line_color),
+            "in_work_area": in_wa,
+        })
+
+    result.sort(key=lambda r: r["x"])
+
+    # Summary stats
+    with_line_color = [r for r in result if r["line_color"] is not None]
+    red_shapes = [r for r in result if r["is_red"]]
+    in_wa_shapes = [r for r in result if r["in_work_area"]]
+
+    # Color frequency table
+    color_counts: dict[str, int] = {}
+    for r in result:
+        c = r["line_color"] or "(none)"
+        color_counts[c] = color_counts.get(c, 0) + 1
+    top_colors = sorted(color_counts.items(), key=lambda kv: -kv[1])[:20]
+
+    return {
+        "band": {
+            "type": band.type,
+            "y_top": round(band.y_top, 1),
+            "y_bottom": round(band.y_bottom, 1),
+        },
+        "work_area": (
+            {"x_start": round(wa.x_start, 1), "x_end": round(wa.x_end, 1)}
+            if wa else None
+        ),
+        "summary": {
+            "total_in_band": len(result),
+            "in_work_area": len(in_wa_shapes),
+            "with_line_color": len(with_line_color),
+            "red_ish": len(red_shapes),
+            "top_line_colors": [{"color": c, "count": n} for c, n in top_colors],
+        },
+        "shapes": result,
+    }
 
 
 # kept for existing tests

@@ -121,7 +121,7 @@ export interface ExtractionLog {
 }
 
 export interface ExtractionResult {
-  _extraction_log: ExtractionLog
+  extraction_log: ExtractionLog
   metadata: { id: string; name: string; createdAt: string; updatedAt: string }
   coordinateRuler: { segments: Array<{ startCoordinate: number; endCoordinate: number; adjustments: unknown[] }> }
   stations: Array<{ name: string; coordinate: number; graphical: Record<string, unknown> }>

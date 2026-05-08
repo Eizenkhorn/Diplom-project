@@ -41,7 +41,7 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
     }
   }
 
-  const log = result?._extraction_log
+  const log = result?.extraction_log
 
   return (
     <div style={{
@@ -282,7 +282,7 @@ function DiagSection({ title, entries }: { title: string; entries: [string, stri
   )
 }
 
-function SummaryGrid({ log }: { log: ExtractionResult['_extraction_log'] }) {
+function SummaryGrid({ log }: { log: ExtractionResult['extraction_log'] }) {
   const items = [
     { label: 'Км-отметки', value: log.coordinate_ruler.found_kilometers + (log.coordinate_ruler.range ? ` (${log.coordinate_ruler.range[0]}–${log.coordinate_ruler.range[1]} км)` : ''), ok: log.coordinate_ruler.found_kilometers >= 2 },
     { label: 'Направление', value: log.coordinate_ruler.direction ?? '—', ok: !!log.coordinate_ruler.direction },
