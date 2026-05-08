@@ -327,6 +327,49 @@ class TestExtractSpeedLimits:
                       "scales_found", "scale_groups", "red_horizontal_with_scale_match"):
             assert field in log
 
+    def test_gap_between_segments_closed(self):
+        """Small gaps between different-limit segments must be closed at midpoint."""
+        band = _band("speed_limits", 200, 400)
+        wa = _wa(0, 2000)
+        # Ascending coord: x=0→km0, x=2000→km2000; net = km*1000
+        coord = CoordinateMapping(
+            points=[(0.0, 0), (2000.0, 2000)], direction="ascending"
+        )
+        scale = self._scale_shapes(band, wa)
+        # 40 km/h segment from x=100 to x=400 (net 100k–400k)
+        # 80 km/h segment from x=600 to x=900 (net 600k–900k); gap = 200k m = 200 km
+        # Gap 200 km >> 5 km threshold → warned, not closed
+        # Use two segments with small gap: 40 km/h x=100-400, 80 km/h x=402-700
+        r40 = _shape("r40", 100, 291, 300, 0, line_color="#ff0000")  # cy=291 → 40 km/h
+        r80 = _shape("r80", 402, 220, 298, 0, line_color="#ff0000")  # cy=220 → 80 km/h
+        segs, log, warnings = extract_speed_limits(scale + [r40, r80], band, wa, coord)
+
+        # Gap between segments: (402k-400k)=2000m < 5000m → should be closed
+        assert len(log["gaps_closed"]) == 1
+        gc = log["gaps_closed"][0]
+        assert gc["gap_meters"] == pytest.approx(2000.0, rel=0.01)
+        # After closing: no gap between the two segments
+        limits = [s.limit for s in segs]
+        assert 40 in limits
+        assert 80 in limits
+
+    def test_same_limit_gap_merged(self):
+        """Two same-limit segments separated by a gap must be merged into one."""
+        band = _band("speed_limits", 200, 400)
+        wa = _wa(0, 2000)
+        coord = CoordinateMapping(
+            points=[(0.0, 0), (2000.0, 2000)], direction="ascending"
+        )
+        scale = self._scale_shapes(band, wa)
+        # Two 40 km/h segments with a small gap
+        r1 = _shape("rg1", 100, 291, 200, 0, line_color="#ff0000")
+        r2 = _shape("rg2", 310, 291, 200, 0, line_color="#ff0000")  # gap=10px after px-merge
+        segs, log, _ = extract_speed_limits(scale + [r1, r2], band, wa, coord)
+
+        # Both segments are 40 km/h → should be merged into one
+        assert all(s.limit == 40 for s in segs)
+        assert len(log["merged_same_limit"]) >= 1
+
     def test_local_scale_used_for_nearest_red_line(self):
         """Each red line must use its nearest local scale, not a global average."""
         band = _band("speed_limits", 200, 400)

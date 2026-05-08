@@ -127,6 +127,9 @@ export interface ExtractionLog {
     scales_found: number
     scale_groups: Array<{ x_center: number; y_to_speed: Array<[number, number]> }>
     red_horizontal_with_scale_match: Array<Record<string, unknown>>
+    gaps_closed: Array<Record<string, unknown>>
+    gaps_too_large_warned: Array<Record<string, unknown>>
+    merged_same_limit: Array<Record<string, unknown>>
   }
   stations: {
     count: number

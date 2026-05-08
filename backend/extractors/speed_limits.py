@@ -31,6 +31,7 @@ _SCALE_X_GROUP_GAP_PX = 100.0
 _MERGE_GAP_PX = 5.0          # merge adjacent pixel-segments within this gap
 _MIN_MERGED_NET_M = 50.0     # discard merged segments shorter than this (metres)
 _GAP_WARN_PX = 50.0          # warn if gap between pixel-segments exceeds this
+_MAX_GAP_CLOSE_M = 5000.0    # post-process: gaps larger than this → warn, not close (~5 km)
 
 
 class SpeedLimitSegment(BaseModel):
@@ -202,6 +203,89 @@ def _merge_global_pts(local_scales: list[dict]) -> list[tuple[float, int]]:
         [(sum(ys) / len(ys), v) for v, ys in speed_y.items()],
         key=lambda p: p[0],
     )
+
+
+def _close_gaps(
+    segments: list[SpeedLimitSegment],
+    warnings: list[str],
+) -> tuple[list[SpeedLimitSegment], list[dict], list[dict], list[dict]]:
+    """Post-process sorted segments to close coverage gaps.
+
+    Pass 1 — merge same-limit neighbours (even across a gap).
+    Pass 2 — close gaps between different-limit neighbours by splitting at
+              midpoint; if gap > _MAX_GAP_CLOSE_M, warn and leave as-is.
+
+    Returns (result_segs, gaps_closed, gaps_too_large_warned, merged_same_limit).
+    """
+    if len(segments) < 2:
+        return list(segments), [], [], []
+
+    gaps_closed: list[dict] = []
+    gaps_too_large: list[dict] = []
+    merged_same: list[dict] = []
+
+    data = [
+        {"start": s.start, "end": s.end, "limit": s.limit, "type": s.type}
+        for s in segments
+    ]
+
+    # ── Pass 1: merge same-limit neighbours (gap-insensitive) ────────────────
+    p1: list[dict] = [data[0].copy()]
+    for nxt in data[1:]:
+        curr = p1[-1]
+        gap_m = nxt["start"] - curr["end"]
+        if curr["limit"] == nxt["limit"] and gap_m >= 0:
+            merged_same.append({
+                "limit": curr["limit"],
+                "merged_range": [round(curr["start"]), round(nxt["end"])],
+                "gap_meters": round(gap_m, 1),
+            })
+            curr["end"] = nxt["end"]
+        else:
+            p1.append(nxt.copy())
+
+    # ── Pass 2: close gaps between different-limit neighbours ─────────────────
+    p2: list[dict] = [p1[0].copy()]
+    for nxt_d in p1[1:]:
+        curr_d = p2[-1]
+        nxt_d = nxt_d.copy()
+        gap_m = nxt_d["start"] - curr_d["end"]
+
+        if gap_m <= 0:
+            p2.append(nxt_d)
+            continue
+
+        if gap_m <= _MAX_GAP_CLOSE_M:
+            mid = (curr_d["end"] + nxt_d["start"]) / 2
+            gaps_closed.append({
+                "between": [round(curr_d["start"]), round(nxt_d["start"])],
+                "gap_meters": round(gap_m, 1),
+                "midpoint": round(mid, 1),
+                "limits": [curr_d["limit"], nxt_d["limit"]],
+            })
+            curr_d["end"] = mid
+            nxt_d["start"] = mid
+            p2.append(nxt_d)
+        else:
+            km_pos = round(curr_d["end"] / 1000, 1)
+            gaps_too_large.append({
+                "between": [round(curr_d["start"]), round(nxt_d["start"])],
+                "gap_meters": round(gap_m, 1),
+                "at_km": km_pos,
+                "limits": [curr_d["limit"], nxt_d["limit"]],
+            })
+            warnings.append(
+                f"speed_limits: large coverage gap of {round(gap_m / 1000, 1)} km "
+                f"between {curr_d['limit']} and {nxt_d['limit']} km/h near "
+                f"km {km_pos} — manual review needed"
+            )
+            p2.append(nxt_d)
+
+    out = [
+        SpeedLimitSegment(start=d["start"], end=d["end"], limit=d["limit"], type=d["type"])
+        for d in p2
+    ]
+    return out, gaps_closed, gaps_too_large, merged_same
 
 
 def extract_speed_limits(
@@ -414,6 +498,9 @@ def extract_speed_limits(
         else:
             final.append(seg)
 
+    # ── 9. Close small coverage gaps ─────────────────────────────────────────
+    final, gaps_closed, gaps_too_large, merged_same = _close_gaps(final, warnings)
+
     log = _make_log(
         shapes_in_band, raw_label_count, deduped_count,
         local_scales, scale_values,
@@ -423,6 +510,9 @@ def extract_speed_limits(
         len(pixel_segments), len(final),
         used_color_filter=True,
         other_lines=0,
+        gaps_closed=gaps_closed,
+        gaps_too_large=gaps_too_large,
+        merged_same_limit=merged_same,
     )
     return final, log, warnings
 
@@ -449,6 +539,9 @@ def _make_log(
     *,
     used_color_filter: bool,
     other_lines: int,
+    gaps_closed: list[dict] | None = None,
+    gaps_too_large: list[dict] | None = None,
+    merged_same_limit: list[dict] | None = None,
 ) -> dict:
     return {
         "shapes_in_band": shapes_in_band,
@@ -482,6 +575,10 @@ def _make_log(
             for sc in local_scales[:60]
         ],
         "red_horizontal_with_scale_match": matched_details[:200],
+        # gap post-processing
+        "gaps_closed": (gaps_closed or [])[:50],
+        "gaps_too_large_warned": (gaps_too_large or [])[:20],
+        "merged_same_limit": (merged_same_limit or [])[:50],
         # backward compat stubs
         "red_line_details": [],
         "rejected_red_segments": [],
@@ -541,6 +638,9 @@ def _fallback_no_red(
         else:
             merged_fb.append(SpeedLimitSegment(start=ns, end=ne, limit=sp))
 
+    merged_fb, gaps_closed_fb, gaps_too_large_fb, merged_same_fb = \
+        _close_gaps(merged_fb, warnings)
+
     log = _make_log(
         shapes_in_band, raw_label_count, deduped_count,
         local_scales, scale_values,
@@ -550,6 +650,9 @@ def _fallback_no_red(
         len(raw_segs), len(merged_fb),
         used_color_filter=False,
         other_lines=len(fb_candidates),
+        gaps_closed=gaps_closed_fb,
+        gaps_too_large=gaps_too_large_fb,
+        merged_same_limit=merged_same_fb,
     )
     return merged_fb, log, warnings
 

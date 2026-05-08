@@ -226,6 +226,9 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                       ['Сырых сегментов', String(log.speed_limits.raw_segments)],
                       ['Отклонено (коротких)', String(log.speed_limits.rejected_short_after_merge?.length ?? '—')],
                       ['Итого сегментов', String(log.speed_limits.found_segments)],
+                      ['Пропусков закрыто', String(log.speed_limits.gaps_closed?.length ?? '—')],
+                      ['Объединено (одинак. лимит)', String(log.speed_limits.merged_same_limit?.length ?? '—')],
+                      ['Больших пропусков (предупрежд.)', String(log.speed_limits.gaps_too_large_warned?.length ?? '—')],
                       ...(log.speed_limits.by_speed_value
                         ? Object.entries(log.speed_limits.by_speed_value).map(([v, s]) =>
                             [`V=${v} км/ч: исх/после слияния`, `${s.raw_count} / ${s.after_merge}`] as [string, string]
