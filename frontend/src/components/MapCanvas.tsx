@@ -7,6 +7,7 @@ import type { MarkupMode } from '../store/markup'
 import { BAND_TYPES, MARK_SUBTYPES } from '../types'
 import type { BandType } from '../types'
 import ExtractionPanel from './ExtractionPanel'
+import { createSession } from '../api'
 
 // ── local types ────────────────────────────────────────────────────────────────
 
@@ -82,13 +83,14 @@ function TBtn({
 // ── main component ─────────────────────────────────────────────────────────────
 
 export default function MapCanvas() {
-  const { pageWidth, pageHeight, svgUrl, fileName, sessionId } = useSessionStore()
+  const { pageWidth, pageHeight, svgUrl, fileName, sessionId, setSession } = useSessionStore()
   const {
     mode, activeBandType, activeMarkSubtype, pendingClicks,
     workArea, bands, stations, marks, selectedId,
     setMode, addPendingClick, cancel, setSelected,
     saveWorkArea, createBand, createStation, createMark,
     deleteBand, deleteStation, deleteMark,
+    loadMarkup, reset: resetMarkup,
   } = useMarkupStore()
 
   // ── canvas state ─────────────────────────────────────────────────────────────
@@ -104,6 +106,26 @@ export default function MapCanvas() {
   // local state for mark subtype selector in toolbar (persists across mode changes)
   const [markSubtypeSelect, setMarkSubtypeSelect] = useState(MARK_SUBTYPES[0].subtype)
   const [showExtraction, setShowExtraction] = useState(false)
+  // ── file re-open ─────────────────────────────────────────────────────────────
+  const newFileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const handleNewFile = useCallback(async (file: File) => {
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const meta = await createSession(file)
+      resetMarkup()
+      setSession(meta.session_id, meta.page_width, meta.page_height, file.name, meta.svg_url)
+      await loadMarkup(meta.session_id)
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setUploading(false)
+    }
+  }, [setSession, loadMarkup, resetMarkup])
+
   // km hints for coordinate_ruler band — use refs so click handler always sees fresh values
   const kmHintStartRef = useRef('')
   const kmHintEndRef = useRef('')
@@ -291,12 +313,43 @@ export default function MapCanvas() {
           {fileName || ''}
         </span>
         <div style={{ flex: 1 }} />
+        {uploadError && (
+          <span style={{ fontSize: 11, color: '#f87171', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {uploadError}
+          </span>
+        )}
         <button
           onClick={fitToScreen}
           style={{ padding: '3px 10px', background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}
         >
           Fit
         </button>
+        <button
+          onClick={() => newFileInputRef.current?.click()}
+          disabled={uploading}
+          title="Открыть другую режимную карту"
+          style={{
+            padding: '3px 10px',
+            background: uploading ? '#334155' : '#1e293b',
+            color: uploading ? '#64748b' : '#94a3b8',
+            border: '1px solid #334155',
+            borderRadius: 5, cursor: uploading ? 'wait' : 'pointer',
+            fontSize: 11, fontFamily: 'inherit',
+          }}
+        >
+          {uploading ? 'Загрузка…' : 'Открыть файл'}
+        </button>
+        <input
+          ref={newFileInputRef}
+          type="file"
+          accept=".vsdx,.vsd"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) handleNewFile(file)
+            e.target.value = ''
+          }}
+        />
       </div>
 
       {/* ── Markup toolbar ── */}
