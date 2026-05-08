@@ -115,6 +115,9 @@ export interface ExtractionLog {
     range: [number, number] | null
   }
   profile: {
+    format_detected?: 'A' | 'B'
+    vertical_dividers?: number
+    rectangles_with_two_texts?: number
     shapes_in_band_y: number
     shapes_in_band_xy: number
     angle_count: number
@@ -122,6 +125,9 @@ export interface ExtractionLog {
     unclassified_count: number
     found_segments: number
     total_length_meters: number
+    total_length_km?: number
+    slope_sign_undetermined?: number
+    segments_without_angle_text?: number
   }
   speed_limits: {
     shapes_in_band: number

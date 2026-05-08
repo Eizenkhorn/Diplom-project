@@ -228,13 +228,17 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                       ['Диапазон км', log.coordinate_ruler.range ? `${log.coordinate_ruler.range[0]}–${log.coordinate_ruler.range[1]}` : '—'],
                     ]} />
                     <DiagSection title="Профиль пути" entries={[
+                      ['Формат', log.profile.format_detected ?? '—'],
+                      ['Вертикальных разделителей (Б)', String(log.profile.vertical_dividers ?? '—')],
+                      ['Прямоугольников с двумя текстами (А)', String(log.profile.rectangles_with_two_texts ?? '—')],
                       ['Фигуры в полосе (Y)', String(log.profile.shapes_in_band_y)],
                       ['Фигуры в полосе (X+Y)', String(log.profile.shapes_in_band_xy)],
                       ['Углы', String(log.profile.angle_count)],
                       ['Длины', String(log.profile.length_count)],
                       ['Нераспознанных', String(log.profile.unclassified_count)],
                       ['Сегментов', String(log.profile.found_segments)],
-                      ['Суммарная длина', `${Math.round(log.profile.total_length_meters)} м`],
+                      ['Знак уклона не определён', String(log.profile.slope_sign_undetermined ?? '—')],
+                      ['Суммарная длина', `${Math.round(log.profile.total_length_meters)} м (${log.profile.total_length_km ?? '?'} км)`],
                     ]} />
                     <DiagSection title="Ограничения скорости" entries={[
                       ['Фигур в полосе', String(log.speed_limits.shapes_in_band)],
@@ -346,8 +350,8 @@ function SummaryGrid({ log }: { log: ExtractionResult['extraction_log'] }) {
   const items = [
     { label: 'Км-отметки', value: log.coordinate_ruler.found_kilometers + (log.coordinate_ruler.range ? ` (${log.coordinate_ruler.range[0]}–${log.coordinate_ruler.range[1]} км)` : ''), ok: log.coordinate_ruler.found_kilometers >= 2 },
     { label: 'Направление', value: log.coordinate_ruler.direction ?? '—', ok: !!log.coordinate_ruler.direction },
-    { label: 'Сегменты профиля', value: String(log.profile.found_segments), ok: log.profile.found_segments > 0 },
-    { label: 'Длина участка', value: log.profile.total_length_meters > 0 ? `${Math.round(log.profile.total_length_meters / 1000)} км` : '—', ok: log.profile.total_length_meters > 0 },
+    { label: 'Сегменты профиля', value: `${log.profile.found_segments}${log.profile.format_detected ? ` (форм. ${log.profile.format_detected})` : ''}`, ok: log.profile.found_segments > 0 },
+    { label: 'Длина участка', value: log.profile.total_length_meters > 0 ? `${log.profile.total_length_km ?? Math.round(log.profile.total_length_meters / 1000)} км` : '—', ok: log.profile.total_length_meters > 0 },
     { label: 'Ограничения скорости', value: String(log.speed_limits.found_segments), ok: log.speed_limits.found_segments > 0 },
     { label: 'Шкала скоростей', value: log.speed_limits.scale_speeds.join(', ') || '—', ok: log.speed_limits.scale_speeds.length > 0 },
     { label: 'Станции', value: String(log.stations.count), ok: log.stations.count > 0 },

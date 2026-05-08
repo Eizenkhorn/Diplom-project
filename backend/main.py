@@ -378,7 +378,7 @@ def _run_extraction(session_id: str) -> dict:
     profile_log: dict = {"found_segments": 0, "total_length_meters": 0}
 
     if profile_bands and wa:
-        segs, profile_log, w = extract_profile(shapes, profile_bands[0], wa)
+        segs, profile_log, w = extract_profile(shapes, profile_bands[0], wa, coord_mapping)
         all_warnings.extend(w)
         profile_segs = [s.model_dump() for s in segs]
 
