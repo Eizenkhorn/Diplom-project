@@ -252,7 +252,7 @@ export default function MapCanvas() {
         useMarkupStore.getState().addPendingClick(p)
       } else {
         const y1 = pendingClicks[0].y
-        const bandData: Parameters<typeof useMarkupStore.getState().createBand>[0] = {
+        const bandData: { type: BandType; y_top: number; y_bottom: number; km_hint_start?: number; km_hint_end?: number } = {
           type: activeBandType!,
           y_top: Math.min(y1, p.y),
           y_bottom: Math.max(y1, p.y),
