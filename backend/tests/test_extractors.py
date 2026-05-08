@@ -244,12 +244,13 @@ class TestExtractProfile:
 
 class TestExtractSpeedLimits:
     def _scale_shapes(self, band: HorizontalBand, wa: WorkArea) -> list[ParsedShape]:
-        # Simulate speed scale labels on the left margin
-        # band y_top=200, y_bottom=400; 0 km/h at y=380, 80 km/h at y=220
+        # Speed scale labels in left margin.
+        # Red test lines are placed at y=291 height=0 → cy=291.
+        # s40 must be within ±3px of cy=291: y=286, h=10 → cy=291 ✓
         return [
-            _shape("s0",  wa.x_start + 5, 375, 20, 10, text="0"),
-            _shape("s40", wa.x_start + 5, 295, 20, 10, text="40"),
-            _shape("s80", wa.x_start + 5, 215, 20, 10, text="80"),
+            _shape("s0",  wa.x_start + 5, 375, 20, 10, text="0"),   # cy=380
+            _shape("s40", wa.x_start + 5, 286, 20, 10, text="40"),  # cy=291
+            _shape("s80", wa.x_start + 5, 215, 20, 10, text="80"),  # cy=220
         ]
 
     def test_no_shapes_returns_empty(self):
@@ -266,8 +267,8 @@ class TestExtractSpeedLimits:
             points=[(0.0, 1800), (2000.0, 1600)], direction="descending"
         )
         scale = self._scale_shapes(band, wa)
-        # Red horizontal line at y≈295 → 40 km/h, from x=100 to x=600
-        red_line = _shape("rl", 100, 289, 500, 4, line_color="#ff0000")
+        # Red horizontal line: height=0 (degenerate), cy=291 → snaps to s40 (cy=291, dist=0)
+        red_line = _shape("rl", 100, 291, 500, 0, line_color="#ff0000")
         segs, log, warnings = extract_speed_limits(scale + [red_line], band, wa, coord)
 
         assert len(segs) == 1
@@ -281,9 +282,9 @@ class TestExtractSpeedLimits:
             points=[(0.0, 0), (2000.0, 2000)], direction="ascending"
         )
         scale = self._scale_shapes(band, wa)
-        # Two adjacent red lines with same speed (y≈295 → 40 km/h)
-        r1 = _shape("r1", 100, 289, 300, 4, line_color="#cc0000")
-        r2 = _shape("r2", 400, 289, 300, 4, line_color="#cc0000")
+        # Two adjacent red lines: height=0, cy=291 → snap to s40; x-ranges touch → merged
+        r1 = _shape("r1", 100, 291, 300, 0, line_color="#cc0000")
+        r2 = _shape("r2", 400, 291, 300, 0, line_color="#cc0000")
         segs, log, _ = extract_speed_limits(scale + [r1, r2], band, wa, coord)
 
         assert len(segs) == 1
@@ -310,8 +311,8 @@ class TestExtractSpeedLimits:
             points=[(0.0, 0), (2000.0, 2000)], direction="ascending"
         )
         scale = self._scale_shapes(band, wa)
-        # Borderline red: R=140, G=90, B=90 → hex #8c5a5a
-        borderline_red = _shape("br", 100, 289, 500, 4, line_color="#8c5a5a")
+        # Borderline red: R=140, G=90, B=90 → hex #8c5a5a; height=0 so classified horizontal
+        borderline_red = _shape("br", 100, 291, 500, 0, line_color="#8c5a5a")
         segs, log, _ = extract_speed_limits(scale + [borderline_red], band, wa, coord)
         assert log["used_color_filter"] is True
 

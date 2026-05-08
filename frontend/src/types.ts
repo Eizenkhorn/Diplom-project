@@ -114,6 +114,16 @@ export interface ExtractionLog {
     value_scale_points: number[]
     red_line_details: Array<Record<string, unknown>>
     rejected_red_segments: Array<Record<string, unknown>>
+    red_elements_classified: {
+      total_red_in_band: number
+      horizontal: number
+      vertical_skipped: number
+      other_skipped: number
+    }
+    by_speed_value: Record<string, { raw_count: number; after_merge: number }>
+    merge_gaps_used: number[]
+    rejected_far_from_scale: Array<Record<string, unknown>>
+    rejected_short_after_merge: Array<Record<string, unknown>>
   }
   stations: {
     count: number

@@ -11,15 +11,33 @@ from extractors.coordinate_ruler import CoordinateMapping
 from models.markup import HorizontalBand, WorkArea
 from models.parsed import ParsedShape
 
-_SPEED_VALUES = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100, 110, 120, 140, 160}
 _SPEED_RE = re.compile(r"^\s*(\d+)\s*$")
 
-# Broadened red tolerance: R≥140, G≤100, B≤100
+# Red tolerance: R≥140, G≤100, B≤100
 _RED_R_MIN = 140
 _RED_GB_MAX = 100
 
-_HORIZ_TOLERANCE_PX = 8
-_MIN_SEGMENT_WIDTH_RATIO = 0.03  # at least 3% of work-area width
+# Element classification: height/width below this → degenerate dimension (≈0)
+_DEGENERATE_PX = 0.5
+
+# Minimum element width to be a horizontal candidate (exclude dots)
+_MIN_ELEMENT_WIDTH_PX = 1.0
+
+# Y→speed strict snap tolerance
+_SCALE_Y_TOLERANCE_PX = 3.0
+
+# Merge gap: adjacent elements within this pixel distance → one segment
+_MERGE_GAP_PX = 5.0
+
+# Minimum merged segment network length (metres)
+_MIN_MERGED_NET_M = 50.0
+
+# Inter-segment gap warning threshold (pixel space)
+_GAP_WARN_PX = 50.0
+
+# Left-margin sizing for scale labels
+_SCALE_MARGIN_RATIO = 0.05
+_SCALE_MARGIN_EXTRA_PX = 100.0
 
 
 class SpeedLimitSegment(BaseModel):
@@ -45,7 +63,7 @@ def _in_band(s: ParsedShape, band: HorizontalBand, wa: WorkArea) -> bool:
 
 
 def _is_red(color: Optional[str]) -> bool:
-    """Return True if the hex color is red-ish (broadened tolerance)."""
+    """Return True if the hex color is red-ish (R≥140, G≤100, B≤100)."""
     if not color or len(color) != 7 or color[0] != "#":
         return False
     try:
@@ -62,18 +80,14 @@ def _build_speed_scale(
     band: HorizontalBand,
     wa: WorkArea,
 ) -> tuple[list[tuple[float, int]], int, list[str]]:
-    """Find speed-value labels on the Y-axis of the speed band.
+    """Build Y→speed scale from labels in left margin, deduplicated by speed value.
 
-    Deduplicates by speed value (uses mean Y for duplicate speed labels).
     Returns (scale_pts, raw_label_count, warnings).
-    scale_pts: list of (y_px, speed_km_h) sorted by y_px ascending.
+    scale_pts: list of (mean_y_px, speed_km_h) sorted by y ascending.
     """
     warnings: list[str] = []
+    margin = (wa.x_end - wa.x_start) * _SCALE_MARGIN_RATIO + _SCALE_MARGIN_EXTRA_PX
 
-    # Left margin: first 5% of work-area width + 100px buffer
-    margin = (wa.x_end - wa.x_start) * 0.05 + 100
-
-    # Collect raw labels: group Y positions by speed value
     speed_y_groups: dict[int, list[float]] = defaultdict(list)
     for s in shapes:
         if s.text is None:
@@ -90,26 +104,39 @@ def _build_speed_scale(
             continue
         speed_y_groups[v].append(_cy(s))
 
-    raw_label_count = sum(len(ys) for ys in speed_y_groups.values())
+    raw_count = sum(len(ys) for ys in speed_y_groups.values())
 
-    # Deduplicate: one entry per speed value, use mean Y
-    scale_pts: list[tuple[float, int]] = []
-    for v, ys in speed_y_groups.items():
-        mean_y = sum(ys) / len(ys)
-        scale_pts.append((mean_y, v))
+    scale_pts: list[tuple[float, int]] = [
+        (sum(ys) / len(ys), v)
+        for v, ys in speed_y_groups.items()
+    ]
 
     if len(scale_pts) < 2:
         warnings.append(
-            f"speed_limits: found only {len(scale_pts)} speed-scale label(s) "
-            f"(need ≥ 2 for Y→speed mapping)"
+            f"speed_limits: found only {len(scale_pts)} speed-scale label(s) — need ≥ 2"
         )
 
-    scale_pts.sort(key=lambda p: p[0])  # ascending Y (top→bottom)
-    return scale_pts, raw_label_count, warnings
+    scale_pts.sort(key=lambda p: p[0])
+    return scale_pts, raw_count, warnings
 
 
-def _y_to_speed(y: float, scale: list[tuple[float, int]]) -> Optional[int]:
-    """Map a pixel Y position to a speed value via linear interpolation."""
+def _y_to_speed_strict(
+    y: float,
+    scale: list[tuple[float, int]],
+) -> tuple[Optional[int], float]:
+    """Snap y to nearest scale point if within _SCALE_Y_TOLERANCE_PX.
+
+    Returns (speed_or_None, distance_to_nearest_px).
+    """
+    if not scale:
+        return None, float("inf")
+    best_y, best_v = min(scale, key=lambda p: abs(p[0] - y))
+    dist = abs(best_y - y)
+    return (best_v if dist <= _SCALE_Y_TOLERANCE_PX else None), dist
+
+
+def _y_to_speed_interp(y: float, scale: list[tuple[float, int]]) -> Optional[int]:
+    """Linear interpolation y → speed (used in fallback path)."""
     if not scale:
         return None
     if len(scale) == 1:
@@ -127,27 +154,6 @@ def _y_to_speed(y: float, scale: list[tuple[float, int]]) -> Optional[int]:
     return scale[-1][1]
 
 
-def _remove_overlaps(segs: list[SpeedLimitSegment]) -> list[SpeedLimitSegment]:
-    """Clip overlapping segments so each network metre belongs to at most one segment."""
-    if len(segs) <= 1:
-        return segs
-    result: list[SpeedLimitSegment] = [segs[0]]
-    for seg in segs[1:]:
-        prev = result[-1]
-        if seg.start < prev.end:
-            # Overlap: clip new segment's start to prev end
-            clipped = seg.start = prev.end  # noqa: F841 (use via variable below)
-            clipped_start = prev.end
-            if seg.end > clipped_start:
-                result.append(SpeedLimitSegment(
-                    start=clipped_start, end=seg.end,
-                    limit=seg.limit, type=seg.type,
-                ))
-        else:
-            result.append(seg)
-    return result
-
-
 def extract_speed_limits(
     shapes: list[ParsedShape],
     band: HorizontalBand,
@@ -156,20 +162,23 @@ def extract_speed_limits(
 ) -> tuple[list[SpeedLimitSegment], dict, list[str]]:
     """Parse the speed limits band into a list of SpeedLimitSegment.
 
-    Strategy:
-    1. Build Y→speed scale from labeled gridlines on the left margin (deduplicated by speed).
-    2. Find horizontal line/connector shapes in the band.
-       a. If color data available: prefer red-colored shapes (broadened tolerance).
-       b. Fallback: all wide horizontal shapes.
-    3. Each horizontal shape → Y maps to speed, X span → network coords.
-    4. Merge adjacent same-speed segments; remove overlaps.
+    Algorithm (red path):
+    1. Find all red shapes in band.
+    2. Classify: horizontal (h≤0.5px, w≥1px), vertical (w≤0.5px), other.
+    3. For each horizontal: strict Y-snap to nearest scale point (±3px).
+       Reject if too far — warns about scale/band misalignment.
+    4. Group by speed value; sort by X; merge adjacent (gap≤5px).
+    5. Gap continuity check in pixel space (warn if gap>50px).
+    6. Convert X ranges to network coords; filter merged segments < 50m.
+    7. Sort by network start; resolve overlaps (keep longer segment).
+
+    Fallback (no red shapes): use all wide horizontal shapes + interpolation.
 
     Returns (segments, log_dict, warnings).
     """
     warnings: list[str] = []
     band_width = work_area.x_end - work_area.x_start
 
-    # Count total shapes in band for diagnostics
     shapes_in_band = sum(
         1 for s in shapes
         if band.y_top <= _cy(s) <= band.y_bottom
@@ -181,200 +190,290 @@ def extract_speed_limits(
     warnings.extend(scale_warnings)
     scale_values = sorted({v for _, v in scale})
 
-    # ── 2. Find speed-limit line shapes ─────────────────────────────────────
-    min_width = band_width * _MIN_SEGMENT_WIDTH_RATIO
+    # ── 2. Find red shapes in band ───────────────────────────────────────────
+    red_in_band = [s for s in shapes if _in_band(s, band, work_area) and _is_red(s.line_color)]
 
-    def is_line_shape(s: ParsedShape) -> bool:
-        return (
-            s.height <= _HORIZ_TOLERANCE_PX * 2
-            and s.width >= min_width
-            and _in_band(s, band, work_area)
+    if not red_in_band:
+        return _fallback_no_red(
+            shapes, band, work_area, coord_mapping, scale, scale_values,
+            raw_label_count, shapes_in_band, warnings,
         )
 
-    candidates = [s for s in shapes if is_line_shape(s)]
-    red_lines = [s for s in candidates if _is_red(s.line_color)]
-    other_lines = [s for s in candidates if not _is_red(s.line_color)]
+    # ── 3. Classify red shapes ───────────────────────────────────────────────
+    horizontal: list[ParsedShape] = []
+    vertical_skipped: list[ParsedShape] = []
+    other_skipped: list[ParsedShape] = []
 
-    if red_lines:
-        limit_shapes = red_lines
-        used_color = True
-    elif candidates:
-        limit_shapes = other_lines
-        used_color = False
+    for s in red_in_band:
+        if s.height <= _DEGENERATE_PX and s.width >= _MIN_ELEMENT_WIDTH_PX:
+            horizontal.append(s)
+        elif s.width <= _DEGENERATE_PX:
+            vertical_skipped.append(s)
+        else:
+            other_skipped.append(s)
+
+    if other_skipped:
         warnings.append(
-            "speed_limits: no red-colored lines found — using all wide horizontal "
-            f"shapes as fallback ({len(limit_shapes)} shapes). "
-            "Results may include grid lines; verify manually."
+            f"speed_limits: {len(other_skipped)} red shape(s) skipped "
+            f"(h and w both > {_DEGENERATE_PX}px, not horizontal/vertical)"
         )
-    else:
+
+    # ── 4. Y-snap each horizontal element → speed group ─────────────────────
+    groups: dict[int, list[tuple[float, float]]] = defaultdict(list)
+    rejected_far: list[dict] = []
+
+    for s in horizontal:
+        cy_s = _cy(s)
+        speed, dist = _y_to_speed_strict(cy_s, scale)
+        if speed is None:
+            entry: dict = {
+                "id": s.id,
+                "x": round(s.x, 1),
+                "y_center": round(cy_s, 1),
+                "distance_px": round(dist, 1),
+            }
+            if scale:
+                best_y, best_v = min(scale, key=lambda p: abs(p[0] - cy_s))
+                entry["closest_scale_y"] = round(best_y, 1)
+                entry["closest_scale_speed"] = best_v
+            rejected_far.append(entry)
+            continue
+        x_end = s.x + s.width
+        if x_end <= s.x:
+            continue
+        groups[speed].append((s.x, x_end))
+
+    if rejected_far:
         warnings.append(
-            "speed_limits: no horizontal line shapes found in band — "
-            "speed limits not extracted"
+            f"speed_limits: {len(rejected_far)} horizontal red element(s) rejected "
+            f"(Y too far from scale, >{_SCALE_Y_TOLERANCE_PX}px) — "
+            "check that speed_limits band aligns with scale labels"
         )
-        log = {
-            "shapes_in_band": shapes_in_band,
-            "scale_labels_raw": raw_label_count,
-            "scale_labels_deduped": len(scale),
-            "scale_speeds": scale_values,
-            "candidate_line_shapes": 0,
-            "red_lines": 0,
-            "other_lines": 0,
-            "used_color_filter": False,
-            "raw_segments": 0,
-            "found_segments": 0,
-            "value_scale_points": scale_values,
-        }
+
+    if not groups:
+        warnings.append(
+            "speed_limits: no horizontal red elements matched scale — "
+            "check band Y placement relative to scale labels"
+        )
+        log = _empty_log(
+            shapes_in_band, raw_label_count, scale, scale_values,
+            len(red_in_band), len(horizontal), len(vertical_skipped), len(other_skipped),
+            rejected_far,
+        )
         return [], log, warnings
 
-    # ── 3. Map each shape to (net_start, net_end, speed) ────────────────────
-    raw_segments: list[tuple[float, float, int]] = []
+    # ── 5. Sort and merge adjacent elements per speed group ──────────────────
+    by_speed_value: dict[str, dict] = {}
+    merge_gaps_used: list[float] = []
+    pixel_segments: list[tuple[float, float, int]] = []  # (x_start, x_end, speed)
 
-    for s in limit_shapes:
-        speed = _y_to_speed(_cy(s), scale)
-        if speed is None or not (0 <= speed <= 200):
-            continue
-        # Snap to nearest known scale value if within 5 km/h
-        closest = min(scale_values or [speed], key=lambda v: abs(v - speed))
-        if abs(closest - speed) <= 5:
-            speed = closest
+    for speed in sorted(groups.keys()):
+        raw = sorted(groups[speed], key=lambda t: t[0])
+        by_speed_value[str(speed)] = {"raw_count": len(raw), "after_merge": 0}
 
-        net_left = coord_mapping.x_to_network_coord(s.x)
-        net_right = coord_mapping.x_to_network_coord(s.x + s.width)
-        net_start = min(net_left, net_right)
-        net_end = max(net_left, net_right)
-        if net_end - net_start < 10:  # < 10 m, skip
-            continue
-        raw_segments.append((net_start, net_end, speed))
+        merged: list[tuple[float, float]] = [raw[0]]
+        for x_start, x_end in raw[1:]:
+            gap = x_start - merged[-1][1]
+            if gap <= _MERGE_GAP_PX:
+                if gap > 0:
+                    merge_gaps_used.append(round(gap, 2))
+                merged[-1] = (merged[-1][0], max(merged[-1][1], x_end))
+            else:
+                merged.append((x_start, x_end))
 
-    raw_segments.sort(key=lambda t: t[0])
+        by_speed_value[str(speed)]["after_merge"] = len(merged)
+        for x0, x1 in merged:
+            pixel_segments.append((x0, x1, speed))
 
-    # ── 4. Merge adjacent same-speed segments ────────────────────────────────
-    merged: list[SpeedLimitSegment] = []
-    for net_start, net_end, speed in raw_segments:
-        if merged and merged[-1].limit == speed and abs(merged[-1].end - net_start) < 500:
-            merged[-1] = SpeedLimitSegment(
-                start=merged[-1].start,
-                end=net_end,
-                limit=speed,
-                type="track_category",
+    pixel_segments.sort(key=lambda t: t[0])
+
+    # ── 6. Continuity check in pixel space ───────────────────────────────────
+    for i in range(1, len(pixel_segments)):
+        gap_px = pixel_segments[i][0] - pixel_segments[i - 1][1]
+        if gap_px > _GAP_WARN_PX:
+            warnings.append(
+                f"speed_limits: gap of {round(gap_px, 1)}px between segments at "
+                f"x≈{round(pixel_segments[i-1][1])} → x≈{round(pixel_segments[i][0])}"
             )
+
+    # ── 7. Convert to network metres; filter short ───────────────────────────
+    net_segs: list[SpeedLimitSegment] = []
+    rejected_short: list[dict] = []
+
+    for x0, x1, speed in pixel_segments:
+        nl = coord_mapping.x_to_network_coord(x0)
+        nr = coord_mapping.x_to_network_coord(x1)
+        ns, ne = min(nl, nr), max(nl, nr)
+        if ne - ns < _MIN_MERGED_NET_M:
+            rejected_short.append({
+                "x_start": round(x0, 1),
+                "x_end": round(x1, 1),
+                "speed": speed,
+                "net_length_m": round(ne - ns, 1),
+            })
+            continue
+        net_segs.append(SpeedLimitSegment(start=ns, end=ne, limit=speed))
+
+    # ── 8. Sort by network start; resolve overlaps (keep longer) ─────────────
+    net_segs.sort(key=lambda s: s.start)
+    final: list[SpeedLimitSegment] = []
+    for seg in net_segs:
+        if final and seg.start < final[-1].end:
+            prev = final[-1]
+            if (seg.end - seg.start) > (prev.end - prev.start):
+                warnings.append(
+                    f"speed_limits: overlap — replaced {prev.limit} km/h segment with "
+                    f"longer {seg.limit} km/h ({round(seg.start)}–{round(seg.end)})"
+                )
+                final[-1] = seg
+            else:
+                warnings.append(
+                    f"speed_limits: overlap — kept {prev.limit} km/h, skipped "
+                    f"{seg.limit} km/h ({round(seg.start)}–{round(seg.end)})"
+                )
         else:
-            merged.append(SpeedLimitSegment(
-                start=net_start, end=net_end,
-                limit=speed, type="track_category",
-            ))
-
-    # ── 5. Remove overlaps ───────────────────────────────────────────────────
-    final = _remove_overlaps(merged)
-
-    bad = [s for s in final if not (0 <= s.limit <= 200)]
-    if bad:
-        warnings.append(
-            f"speed_limits: {len(bad)} segment(s) with out-of-range limit values removed"
-        )
-        final = [s for s in final if 0 <= s.limit <= 200]
-
-    # ── 6. Per-shape diagnostics (red shapes only, for log) ──────────────────
-    red_line_details: list[dict] = []
-    rejected_red_segments: list[dict] = []
-
-    all_red_in_band = [
-        s for s in shapes
-        if _in_band(s, band, work_area) and _is_red(s.line_color)
-    ]
-
-    for s in all_red_in_band:
-        cy_s = _cy(s)
-        base: dict = {
-            "id": s.id,
-            "x": round(s.x, 1),
-            "y": round(s.y, 1),
-            "width": round(s.width, 1),
-            "height": round(s.height, 1),
-            "stroke_color": s.line_color,
-            "geometry_points_count": 0,   # not stored by parser
-            "is_horizontal": s.height <= _HORIZ_TOLERANCE_PX * 2,
-        }
-
-        if s.height > _HORIZ_TOLERANCE_PX * 2:
-            rejected_red_segments.append({
-                **base,
-                "rejection_reason": "height_too_large",
-                "threshold_px": _HORIZ_TOLERANCE_PX * 2,
-            })
-            continue
-
-        if s.width < min_width:
-            rejected_red_segments.append({
-                **base,
-                "rejection_reason": "width_too_small",
-                "min_width_px": round(min_width, 1),
-            })
-            continue
-
-        speed = _y_to_speed(cy_s, scale)
-        net_left = coord_mapping.x_to_network_coord(s.x)
-        net_right = coord_mapping.x_to_network_coord(s.x + s.width)
-        net_start_d = min(net_left, net_right)
-        net_end_d = max(net_left, net_right)
-
-        if speed is None:
-            rejected_red_segments.append({
-                **base,
-                "rejection_reason": "no_speed_scale",
-                "y_center": round(cy_s, 1),
-            })
-            continue
-
-        if not (0 <= speed <= 200):
-            rejected_red_segments.append({
-                **base,
-                "rejection_reason": "speed_out_of_range",
-                "speed": speed,
-                "y_center": round(cy_s, 1),
-            })
-            continue
-
-        if net_end_d - net_start_d < 10:
-            rejected_red_segments.append({
-                **base,
-                "rejection_reason": "too_short_network",
-                "net_length_m": round(net_end_d - net_start_d, 1),
-                "speed": speed,
-            })
-            continue
-
-        closest = min(scale_values or [speed], key=lambda v: abs(v - speed))
-        snapped = closest if abs(closest - speed) <= 5 else speed
-
-        red_line_details.append({
-            **base,
-            "y_center": round(cy_s, 1),
-            "speed_raw": speed,
-            "speed_snapped": snapped,
-            "horizontal_segments_extracted": [{
-                "x_start": round(s.x, 1),
-                "x_end": round(s.x + s.width, 1),
-                "y_avg": round(cy_s, 1),
-                "net_start": round(net_start_d),
-                "net_end": round(net_end_d),
-                "limit_value": snapped,
-            }],
-        })
+            final.append(seg)
 
     log = {
         "shapes_in_band": shapes_in_band,
         "scale_labels_raw": raw_label_count,
         "scale_labels_deduped": len(scale),
         "scale_speeds": scale_values,
-        "candidate_line_shapes": len(candidates),
-        "red_lines": len(red_lines),
-        "other_lines": len(other_lines),
-        "used_color_filter": used_color,
-        "raw_segments": len(raw_segments),
+        "candidate_line_shapes": len(red_in_band),
+        "red_lines": len(red_in_band),
+        "other_lines": 0,
+        "used_color_filter": True,
+        "red_elements_classified": {
+            "total_red_in_band": len(red_in_band),
+            "horizontal": len(horizontal),
+            "vertical_skipped": len(vertical_skipped),
+            "other_skipped": len(other_skipped),
+        },
+        "by_speed_value": by_speed_value,
+        "merge_gaps_used": sorted(set(merge_gaps_used))[:20],
+        "rejected_far_from_scale": rejected_far[:20],
+        "rejected_short_after_merge": rejected_short[:20],
+        "raw_segments": len(pixel_segments),
         "found_segments": len(final),
         "value_scale_points": scale_values,
-        "red_line_details": red_line_details,
-        "rejected_red_segments": rejected_red_segments,
+        # kept for backward compat with old diagnostic fields
+        "red_line_details": [],
+        "rejected_red_segments": [],
     }
     return final, log, warnings
+
+
+def _fallback_no_red(
+    shapes: list[ParsedShape],
+    band: HorizontalBand,
+    work_area: WorkArea,
+    coord_mapping: CoordinateMapping,
+    scale: list[tuple[float, int]],
+    scale_values: list[int],
+    raw_label_count: int,
+    shapes_in_band: int,
+    warnings: list[str],
+) -> tuple[list[SpeedLimitSegment], dict, list[str]]:
+    """Fallback: no red shapes — use wide horizontal shapes + interpolation."""
+    min_width_fb = (work_area.x_end - work_area.x_start) * 0.03
+    fb_candidates = [
+        s for s in shapes
+        if _in_band(s, band, work_area)
+        and s.height <= 16
+        and s.width >= min_width_fb
+    ]
+    warnings.append(
+        "speed_limits: no red-colored shapes found — "
+        f"fallback to {len(fb_candidates)} wide horizontal shapes; "
+        "results may include grid lines"
+    )
+
+    raw_segs: list[tuple[float, float, int]] = []
+    for s in fb_candidates:
+        sp = _y_to_speed_interp(_cy(s), scale)
+        if sp is None or not (0 <= sp <= 200):
+            continue
+        cl = min(scale_values or [sp], key=lambda v: abs(v - sp))
+        if abs(cl - sp) <= 5:
+            sp = cl
+        nl = coord_mapping.x_to_network_coord(s.x)
+        nr = coord_mapping.x_to_network_coord(s.x + s.width)
+        ns, ne = min(nl, nr), max(nl, nr)
+        if ne - ns < 10:
+            continue
+        raw_segs.append((ns, ne, sp))
+
+    raw_segs.sort()
+    merged_fb: list[SpeedLimitSegment] = []
+    for ns, ne, sp in raw_segs:
+        if merged_fb and merged_fb[-1].limit == sp and abs(merged_fb[-1].end - ns) < 500:
+            merged_fb[-1] = SpeedLimitSegment(
+                start=merged_fb[-1].start, end=ne, limit=sp
+            )
+        else:
+            merged_fb.append(SpeedLimitSegment(start=ns, end=ne, limit=sp))
+
+    log = {
+        "shapes_in_band": shapes_in_band,
+        "scale_labels_raw": raw_label_count,
+        "scale_labels_deduped": len(scale),
+        "scale_speeds": scale_values,
+        "candidate_line_shapes": len(fb_candidates),
+        "red_lines": 0,
+        "other_lines": len(fb_candidates),
+        "used_color_filter": False,
+        "red_elements_classified": {
+            "total_red_in_band": 0,
+            "horizontal": 0,
+            "vertical_skipped": 0,
+            "other_skipped": 0,
+        },
+        "by_speed_value": {},
+        "merge_gaps_used": [],
+        "rejected_far_from_scale": [],
+        "rejected_short_after_merge": [],
+        "raw_segments": len(raw_segs),
+        "found_segments": len(merged_fb),
+        "value_scale_points": scale_values,
+        "red_line_details": [],
+        "rejected_red_segments": [],
+    }
+    return merged_fb, log, warnings
+
+
+def _empty_log(
+    shapes_in_band: int,
+    raw_label_count: int,
+    scale: list[tuple[float, int]],
+    scale_values: list[int],
+    total_red: int,
+    horiz: int,
+    vert: int,
+    other: int,
+    rejected_far: list[dict],
+) -> dict:
+    return {
+        "shapes_in_band": shapes_in_band,
+        "scale_labels_raw": raw_label_count,
+        "scale_labels_deduped": len(scale),
+        "scale_speeds": scale_values,
+        "candidate_line_shapes": total_red,
+        "red_lines": total_red,
+        "other_lines": 0,
+        "used_color_filter": True,
+        "red_elements_classified": {
+            "total_red_in_band": total_red,
+            "horizontal": horiz,
+            "vertical_skipped": vert,
+            "other_skipped": other,
+        },
+        "by_speed_value": {},
+        "merge_gaps_used": [],
+        "rejected_far_from_scale": rejected_far,
+        "rejected_short_after_merge": [],
+        "raw_segments": 0,
+        "found_segments": 0,
+        "value_scale_points": scale_values,
+        "red_line_details": [],
+        "rejected_red_segments": [],
+    }

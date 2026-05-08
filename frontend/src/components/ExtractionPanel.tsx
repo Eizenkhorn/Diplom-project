@@ -214,14 +214,22 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                     <DiagSection title="Ограничения скорости" entries={[
                       ['Фигур в полосе', String(log.speed_limits.shapes_in_band)],
                       ['Меток шкалы (сырых)', String(log.speed_limits.scale_labels_raw)],
-                      ['Меток шкалы (после дедупл.)', String(log.speed_limits.scale_labels_deduped)],
+                      ['Меток шкалы (дедупл.)', String(log.speed_limits.scale_labels_deduped)],
                       ['Скорости шкалы', log.speed_limits.scale_speeds.join(', ') || '—'],
-                      ['Линий-кандидатов', String(log.speed_limits.candidate_line_shapes)],
-                      ['Красных линий', String(log.speed_limits.red_lines)],
-                      ['Прочих линий', String(log.speed_limits.other_lines)],
+                      ['Красных в полосе', String(log.speed_limits.red_elements_classified?.total_red_in_band ?? log.speed_limits.red_lines)],
+                      ['Горизонтальных', String(log.speed_limits.red_elements_classified?.horizontal ?? '—')],
+                      ['Вертикальных (пропущено)', String(log.speed_limits.red_elements_classified?.vertical_skipped ?? '—')],
+                      ['Прочих (пропущено)', String(log.speed_limits.red_elements_classified?.other_skipped ?? '—')],
+                      ['Отклонено (далеко от шкалы)', String(log.speed_limits.rejected_far_from_scale?.length ?? '—')],
                       ['Фильтр по цвету', log.speed_limits.used_color_filter ? 'да' : 'нет'],
                       ['Сырых сегментов', String(log.speed_limits.raw_segments)],
+                      ['Отклонено (коротких)', String(log.speed_limits.rejected_short_after_merge?.length ?? '—')],
                       ['Итого сегментов', String(log.speed_limits.found_segments)],
+                      ...(log.speed_limits.by_speed_value
+                        ? Object.entries(log.speed_limits.by_speed_value).map(([v, s]) =>
+                            [`V=${v} км/ч: исх/после слияния`, `${s.raw_count} / ${s.after_merge}`] as [string, string]
+                          )
+                        : []),
                     ]} />
                     <DiagSection title="Станции" entries={[
                       ['Количество', String(log.stations.count)],
