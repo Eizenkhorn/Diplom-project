@@ -145,7 +145,8 @@ export interface ExtractionResult {
   stations: Array<{ name: string; coordinate: number; graphical: Record<string, unknown> }>
   profile: ProfileSegment[]
   speedLimits: SpeedLimitSegment[]
-  marks: unknown[]
+  marks: Array<{ subtype: string; coordinate: number; x: number; y: number; meta: Record<string, unknown> }>
+  coord_mapping_points: Array<{ x_px: number; km: number }>
 }
 
 // ── type registries (must stay in sync with backend/models/markup_types.py) ───

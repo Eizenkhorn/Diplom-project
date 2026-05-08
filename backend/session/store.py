@@ -12,6 +12,7 @@ class Session:
     svg_path: str
     tmpdirs: list[str] = field(default_factory=list)
     markup: SessionMarkup = field(default_factory=SessionMarkup)
+    edited_data: dict | None = None
 
 
 sessions: dict[str, Session] = {}

@@ -7,6 +7,7 @@ import type { MarkupMode } from '../store/markup'
 import { BAND_TYPES, MARK_SUBTYPES } from '../types'
 import type { BandType } from '../types'
 import ExtractionPanel from './ExtractionPanel'
+import EditPanel from './EditPanel'
 import { createSession } from '../api'
 
 // ── local types ────────────────────────────────────────────────────────────────
@@ -106,6 +107,7 @@ export default function MapCanvas() {
   // local state for mark subtype selector in toolbar (persists across mode changes)
   const [markSubtypeSelect, setMarkSubtypeSelect] = useState(MARK_SUBTYPES[0].subtype)
   const [showExtraction, setShowExtraction] = useState(false)
+  const [showEditPanel, setShowEditPanel] = useState(false)
   // ── file re-open ─────────────────────────────────────────────────────────────
   const newFileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -153,6 +155,14 @@ export default function MapCanvas() {
   useEffect(() => {
     applyImgTransform(pos.x, pos.y, scale)
   }, [pos.x, pos.y, scale, svgUrl, applyImgTransform])
+
+  const navigateToDocX = useCallback((docX: number) => {
+    const newX = size.w / 2 - docX * scale
+    setPos((prev) => {
+      applyImgTransform(newX, prev.y, scale)
+      return { x: newX, y: prev.y }
+    })
+  }, [size.w, scale, applyImgTransform])
 
   // ── fit to screen ────────────────────────────────────────────────────────────
   const fitToScreen = useCallback(() => {
@@ -486,6 +496,15 @@ export default function MapCanvas() {
       {/* ── Extraction panel modal ── */}
       {showExtraction && sessionId && (
         <ExtractionPanel sessionId={sessionId} onClose={() => setShowExtraction(false)} />
+      )}
+
+      {/* ── Edit panel modal ── */}
+      {showEditPanel && sessionId && (
+        <EditPanel
+          sessionId={sessionId}
+          onClose={() => setShowEditPanel(false)}
+          onNavigate={navigateToDocX}
+        />
       )}
 
       {/* ── Main area ── */}
@@ -842,6 +861,16 @@ export default function MapCanvas() {
               }}
             >
               Извлечь данные…
+            </button>
+            <button
+              onClick={() => setShowEditPanel(true)}
+              style={{
+                display: 'block', width: '100%', padding: '8px', background: '#f59e0b', color: '#fff',
+                border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                textAlign: 'center', cursor: 'pointer',
+              }}
+            >
+              Редактировать данные…
             </button>
             <a
               href={`/api/sessions/${sessionId}/export`}

@@ -443,6 +443,10 @@ def _run_extraction(session_id: str) -> dict:
         "locomotiveRegimeBands": [],
         "longitudinalForces": [],
         "marks": output_marks,
+        "coord_mapping_points": [
+            {"x_px": round(x, 1), "km": km}
+            for x, km in coord_mapping.points
+        ],
     }
 
 
@@ -463,11 +467,28 @@ def sessions_extract(session_id: str):
         raise HTTPException(status_code=500, detail=f"Extraction error: {exc}") from exc
 
 
+# ── edited-data save ──────────────────────────────────────────────────────────
+
+@app.put("/api/sessions/{session_id}/edited-data")
+def sessions_save_edited(session_id: str, body: dict):
+    """Store manually-edited extraction result. Overwrites any previous edits."""
+    session = _require_session(session_id)
+    session.edited_data = body
+    return {"ok": True, "saved_at": datetime.now(timezone.utc).isoformat()}
+
+
 # ── export (download) ──────────────────────────────────────────────────────────
 
 @app.get("/api/sessions/{session_id}/export")
 def sessions_export(session_id: str):
-    """Run extractors and return the full JSON including extraction_log."""
+    """Return the export JSON. Uses edited_data if saved, otherwise runs extractors."""
+    session = _require_session(session_id)
+    if session.edited_data is not None:
+        now = datetime.now(timezone.utc).isoformat()
+        result = dict(session.edited_data)
+        if "metadata" in result:
+            result["metadata"] = {**result["metadata"], "updatedAt": now}
+        return result
     try:
         return _run_extraction(session_id)
     except HTTPException:

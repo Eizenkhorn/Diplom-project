@@ -135,6 +135,15 @@ export async function exportSession(sessionId: string): Promise<unknown> {
   return res.json()
 }
 
+export async function saveEdits(sessionId: string, data: unknown): Promise<void> {
+  const res = await fetch(`/api/sessions/${sessionId}/edited-data`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  await _checkOk(res)
+}
+
 // kept for tests
 export async function parseFile(file: File): Promise<ParsedDocument> {
   const fd = new FormData()
