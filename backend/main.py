@@ -17,9 +17,11 @@ from models.parsed import ParsedDocument, ParsedShape
 from parser import parse_visio_file
 from session.store import create_session, get_session
 from extractors.coordinate_ruler import extract_coordinate_ruler, CoordinateMapping
+from extractors.locomotive_regime import extract_locomotive_regimes
 from extractors.profile import extract_profile
 from extractors.speed_limits import extract_speed_limits, _is_red
 from extractors.stations import extract_stations
+from extractors.track_plan import extract_track_plan
 
 logging.basicConfig(level=logging.INFO)
 
@@ -395,6 +397,33 @@ def _run_extraction(session_id: str) -> dict:
     stations_list, stations_log, w = extract_stations(markup.stations, coord_mapping)
     all_warnings.extend(w)
 
+    # ── Track plan ───────────────────────────────────────────────────────────
+    track_plan_bands = [b for b in markup.bands if b.type == "track_plan" and not b.is_informational]
+    track_plan_curves: list[dict] = []
+    track_plan_log: dict = {"shapes_in_band": 0, "blue_shapes": 0, "step_shapes": 0,
+                            "curve_texts_found": 0, "curves_matched": 0, "unmatched_texts": 0}
+
+    if track_plan_bands and wa:
+        curves, track_plan_log, w = extract_track_plan(
+            shapes, track_plan_bands[0], wa, coord_mapping
+        )
+        all_warnings.extend(w)
+        track_plan_curves = [c.model_dump() for c in curves]
+
+    # ── Locomotive regimes ────────────────────────────────────────────────────
+    traction_bands = [b for b in markup.bands if b.type == "traction_modes" and not b.is_informational]
+    loco_regime_bands: list[dict] = []
+    loco_regime_log: dict = {"loco_labels_found": 0, "line_segments_total": 0,
+                             "mode_texts_found": 0, "bands_extracted": 0,
+                             "total_segments": 0, "loco_labels_raw": [], "per_band": []}
+
+    if traction_bands and wa:
+        bands_out, loco_regime_log, w = extract_locomotive_regimes(
+            shapes, traction_bands[0], wa, coord_mapping
+        )
+        all_warnings.extend(w)
+        loco_regime_bands = [b.model_dump() for b in bands_out]
+
     # ── Marks (MarkPoints → output marks array) ───────────────────────────────
     def _safe_round(v: float) -> int:
         """round() that never raises on NaN/Inf."""
@@ -418,6 +447,8 @@ def _run_extraction(session_id: str) -> dict:
         "profile": profile_log,
         "speed_limits": speed_log,
         "stations": stations_log,
+        "track_plan": track_plan_log,
+        "locomotive_regime": loco_regime_log,
         "warnings": all_warnings,
     }
 
@@ -436,11 +467,11 @@ def _run_extraction(session_id: str) -> dict:
         "locomotives": [],
         "cars": [],
         "canvasLayers": [],
-        "trackPlan": [],
+        "trackPlan": track_plan_curves,
         "optimalSpeedCurve": [],
         "speedCurve": [],
         "optimalRegimeBands": [],
-        "locomotiveRegimeBands": [],
+        "locomotiveRegimeBands": loco_regime_bands,
         "longitudinalForces": [],
         "marks": output_marks,
         "coord_mapping_points": [

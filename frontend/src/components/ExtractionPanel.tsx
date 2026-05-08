@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ExtractionResult, ProfileSegment, SpeedLimitSegment } from '../types'
+import type { ExtractionResult, ProfileSegment, SpeedLimitSegment, LocomotiveRegimeBand } from '../types'
 import { extractSession, exportSession } from '../api'
 
 interface Props {
@@ -149,6 +149,31 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                 </Section>
               )}
 
+              {/* Track plan */}
+              {result.trackPlan && result.trackPlan.length > 0 && (
+                <Section title={`План пути (${result.trackPlan.length} кривых)`}>
+                  <DataTable
+                    headers={['Нач. (м)', 'Кон. (м)', 'Радиус м', 'Длина м', 'Напр.']}
+                    rows={result.trackPlan.map((c) => [
+                      String(c.start),
+                      String(c.end),
+                      String(c.radius),
+                      String(c.length),
+                      c.direction === 'up' ? '↑' : '↓',
+                    ])}
+                  />
+                </Section>
+              )}
+
+              {/* Locomotive regimes */}
+              {result.locomotiveRegimeBands && result.locomotiveRegimeBands.length > 0 && (
+                <Section title={`Режимы тяги (${result.locomotiveRegimeBands.length} локомотивов)`}>
+                  {result.locomotiveRegimeBands.map((band, bi) => (
+                    <LocoBandTable key={bi} band={band} />
+                  ))}
+                </Section>
+              )}
+
               {/* Stations */}
               {result.stations.length > 0 && (
                 <Section title={`Станции (${result.stations.length})`}>
@@ -241,6 +266,29 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                         ? log.stations.coordinates.slice(0, 10).join(', ') + (log.stations.coordinates.length > 10 ? '…' : '')
                         : '—'],
                     ]} />
+                    {log.track_plan && (
+                      <DiagSection title="План пути" entries={[
+                        ['Фигур в полосе', String(log.track_plan.shapes_in_band)],
+                        ['Синих фигур', String(log.track_plan.blue_shapes)],
+                        ['Ступенек (bumps)', String(log.track_plan.step_shapes)],
+                        ['Текстов N/M найдено', String(log.track_plan.curve_texts_found)],
+                        ['Кривых сопоставлено', String(log.track_plan.curves_matched)],
+                        ['Несопоставленных текстов', String(log.track_plan.unmatched_texts)],
+                      ]} />
+                    )}
+                    {log.locomotive_regime && (
+                      <DiagSection title="Режимы тяги" entries={[
+                        ['Надписей локомотивов', String(log.locomotive_regime.loco_labels_found)],
+                        ['Подписи', log.locomotive_regime.loco_labels_raw.join(' | ') || '—'],
+                        ['Линий-сегментов в полосе', String(log.locomotive_regime.line_segments_total)],
+                        ['Текстов режимов', String(log.locomotive_regime.mode_texts_found)],
+                        ['Полос извлечено', String(log.locomotive_regime.bands_extracted)],
+                        ['Всего сегментов', String(log.locomotive_regime.total_segments)],
+                        ...log.locomotive_regime.per_band.map((b) => (
+                          [`${b.label}`, `линий: ${b.lines}, сег: ${b.segments}, текстов: ${b.mode_texts ?? '?'}`] as [string, string]
+                        )),
+                      ]} />
+                    )}
                   </div>
                 )}
               </div>
@@ -303,6 +351,8 @@ function SummaryGrid({ log }: { log: ExtractionResult['extraction_log'] }) {
     { label: 'Ограничения скорости', value: String(log.speed_limits.found_segments), ok: log.speed_limits.found_segments > 0 },
     { label: 'Шкала скоростей', value: log.speed_limits.scale_speeds.join(', ') || '—', ok: log.speed_limits.scale_speeds.length > 0 },
     { label: 'Станции', value: String(log.stations.count), ok: log.stations.count > 0 },
+    { label: 'Кривые плана пути', value: String(log.track_plan?.curves_matched ?? '—'), ok: (log.track_plan?.curves_matched ?? 0) > 0 },
+    { label: 'Режимы тяги', value: log.locomotive_regime ? `${log.locomotive_regime.bands_extracted} лок. / ${log.locomotive_regime.total_segments} сег.` : '—', ok: (log.locomotive_regime?.total_segments ?? 0) > 0 },
   ]
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -316,6 +366,50 @@ function SummaryGrid({ log }: { log: ExtractionResult['extraction_log'] }) {
           <div style={{ fontSize: 12, color: '#1e293b', fontWeight: 500 }}>{it.value}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function LocoBandTable({ band }: { band: LocomotiveRegimeBand }) {
+  const modeColors: Record<string, string> = {
+    traction: '#10b981',
+    coasting: '#3b82f6',
+    braking: '#ef4444',
+    unknown: '#94a3b8',
+  }
+  const modeLabels: Record<string, string> = {
+    traction: 'Тяга',
+    coasting: 'Выбег',
+    braking: 'Торможение',
+    unknown: '—',
+  }
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>
+        {band.raw_label}
+        {band.weight !== null && (
+          <span style={{ marginLeft: 8, fontWeight: 400, color: '#64748b' }}>
+            {band.weight} т
+          </span>
+        )}
+        <span style={{ marginLeft: 8, fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>
+          {band.segments.length} сегм.
+        </span>
+      </div>
+      {band.segments.length === 0 ? (
+        <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Сегменты не найдены</div>
+      ) : (
+        <DataTable
+          headers={['Нач. (м)', 'Кон. (м)', 'Режим', 'Надпись', 'Цвет']}
+          rows={band.segments.map((seg) => [
+            String(seg.start),
+            String(seg.end),
+            modeLabels[seg.mode] ?? seg.mode,
+            seg.mode_label || '—',
+            seg.color,
+          ])}
+        />
+      )}
     </div>
   )
 }

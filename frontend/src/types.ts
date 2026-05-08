@@ -65,6 +65,29 @@ export interface SessionMarkup {
 
 // ── extraction results ────────────────────────────────────────────────────────
 
+export interface TrackPlanCurve {
+  start: number
+  end: number
+  radius: number
+  length: number
+  direction: 'up' | 'down'
+}
+
+export interface LocomotiveRegimeSegment {
+  start: number
+  end: number
+  mode: 'traction' | 'coasting' | 'braking' | 'unknown'
+  mode_label: string
+  color: string
+}
+
+export interface LocomotiveRegimeBand {
+  locomotive_type: string
+  weight: number | null
+  raw_label: string
+  segments: LocomotiveRegimeSegment[]
+}
+
 export interface ProfileSegment {
   start: number
   end: number
@@ -135,6 +158,23 @@ export interface ExtractionLog {
     count: number
     coordinates: number[]
   }
+  track_plan: {
+    shapes_in_band: number
+    blue_shapes: number
+    step_shapes: number
+    curve_texts_found: number
+    curves_matched: number
+    unmatched_texts: number
+  }
+  locomotive_regime: {
+    loco_labels_found: number
+    line_segments_total: number
+    mode_texts_found: number
+    bands_extracted: number
+    total_segments: number
+    loco_labels_raw: string[]
+    per_band: Array<{ label: string; lines: number; segments: number; mode_texts?: number }>
+  }
   warnings: string[]
 }
 
@@ -145,6 +185,8 @@ export interface ExtractionResult {
   stations: Array<{ name: string; coordinate: number; graphical: Record<string, unknown> }>
   profile: ProfileSegment[]
   speedLimits: SpeedLimitSegment[]
+  trackPlan: TrackPlanCurve[]
+  locomotiveRegimeBands: LocomotiveRegimeBand[]
   marks: Array<{ subtype: string; coordinate: number; x: number; y: number; meta: Record<string, unknown> }>
   coord_mapping_points: Array<{ x_px: number; km: number }>
 }
