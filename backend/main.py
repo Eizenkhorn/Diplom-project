@@ -560,6 +560,93 @@ def debug_shapes(
     }
 
 
+# ── debug: detailed shapes inside a band ──────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/debug-shapes-in-band")
+def debug_shapes_in_band(
+    session_id: str,
+    band_type: str = Query("speed_limits", description="Band type to inspect"),
+) -> dict:
+    """Detailed diagnostic dump of all shapes in a band.
+
+    Returns total counts by shape_type, plus the first 50 line/path-like shapes
+    sorted by X with full color and geometry info.
+    Note: geometry_points is always [] — the parser stores only bounding boxes.
+    """
+    session = _require_session(session_id)
+    markup = session.markup
+    shapes = session.doc.shapes
+
+    bands = [b for b in markup.bands if b.type == band_type]
+    if not bands:
+        return {
+            "error": f"No band of type '{band_type}'. Marked: {[b.type for b in markup.bands]}",
+            "band": None,
+            "shapes": [],
+        }
+
+    band = bands[0]
+    wa = markup.work_area
+
+    # All shapes whose center-Y is inside the band
+    in_band: list[ParsedShape] = []
+    for s in shapes:
+        cy = s.y + s.height / 2
+        if band.y_top <= cy <= band.y_bottom:
+            in_band.append(s)
+
+    in_band.sort(key=lambda s: s.x)
+
+    # Count by shape_type
+    by_type: dict[str, int] = {}
+    for s in in_band:
+        by_type[s.shape_type] = by_type.get(s.shape_type, 0) + 1
+
+    # All shapes regardless of WA (for visibility)
+    lines_and_paths = []
+    for s in in_band:
+        cx = s.x + s.width / 2
+        in_wa = wa is None or (wa.x_start <= cx <= wa.x_end)
+        lines_and_paths.append({
+            "id": s.id,
+            "shape_type": s.shape_type,
+            "x": round(s.x, 1),
+            "y": round(s.y, 1),
+            "width": round(s.width, 1),
+            "height": round(s.height, 1),
+            "stroke_color": s.line_color,
+            "fill_color": s.fill_color,
+            "text": s.text,
+            "in_work_area": in_wa,
+            "is_red": _is_red(s.line_color),
+            "geometry_points": [],   # not stored by parser (only bbox available)
+        })
+
+    # Color frequency
+    color_counts: dict[str, int] = {}
+    for s in in_band:
+        c = s.line_color or "(none)"
+        color_counts[c] = color_counts.get(c, 0) + 1
+    top_colors = sorted(color_counts.items(), key=lambda kv: -kv[1])[:20]
+
+    return {
+        "band": {
+            "y_top": round(band.y_top, 1),
+            "y_bottom": round(band.y_bottom, 1),
+            "x_start": round(wa.x_start, 1) if wa else None,
+            "x_end": round(wa.x_end, 1) if wa else None,
+        },
+        "total_shapes_in_band": len(in_band),
+        "by_shape_type": by_type,
+        "color_summary": {
+            "with_line_color": sum(1 for s in in_band if s.line_color),
+            "red_ish": sum(1 for s in in_band if _is_red(s.line_color)),
+            "top_line_colors": [{"color": c, "count": n} for c, n in top_colors],
+        },
+        "lines_and_paths": lines_and_paths[:50],
+    }
+
+
 # kept for existing tests
 @app.post("/api/parse", response_model=ParsedDocument)
 async def parse(

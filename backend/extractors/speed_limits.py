@@ -274,6 +274,94 @@ def extract_speed_limits(
         )
         final = [s for s in final if 0 <= s.limit <= 200]
 
+    # ── 6. Per-shape diagnostics (red shapes only, for log) ──────────────────
+    red_line_details: list[dict] = []
+    rejected_red_segments: list[dict] = []
+
+    all_red_in_band = [
+        s for s in shapes
+        if _in_band(s, band, work_area) and _is_red(s.line_color)
+    ]
+
+    for s in all_red_in_band:
+        cy_s = _cy(s)
+        base: dict = {
+            "id": s.id,
+            "x": round(s.x, 1),
+            "y": round(s.y, 1),
+            "width": round(s.width, 1),
+            "height": round(s.height, 1),
+            "stroke_color": s.line_color,
+            "geometry_points_count": 0,   # not stored by parser
+            "is_horizontal": s.height <= _HORIZ_TOLERANCE_PX * 2,
+        }
+
+        if s.height > _HORIZ_TOLERANCE_PX * 2:
+            rejected_red_segments.append({
+                **base,
+                "rejection_reason": "height_too_large",
+                "threshold_px": _HORIZ_TOLERANCE_PX * 2,
+            })
+            continue
+
+        if s.width < min_width:
+            rejected_red_segments.append({
+                **base,
+                "rejection_reason": "width_too_small",
+                "min_width_px": round(min_width, 1),
+            })
+            continue
+
+        speed = _y_to_speed(cy_s, scale)
+        net_left = coord_mapping.x_to_network_coord(s.x)
+        net_right = coord_mapping.x_to_network_coord(s.x + s.width)
+        net_start_d = min(net_left, net_right)
+        net_end_d = max(net_left, net_right)
+
+        if speed is None:
+            rejected_red_segments.append({
+                **base,
+                "rejection_reason": "no_speed_scale",
+                "y_center": round(cy_s, 1),
+            })
+            continue
+
+        if not (0 <= speed <= 200):
+            rejected_red_segments.append({
+                **base,
+                "rejection_reason": "speed_out_of_range",
+                "speed": speed,
+                "y_center": round(cy_s, 1),
+            })
+            continue
+
+        if net_end_d - net_start_d < 10:
+            rejected_red_segments.append({
+                **base,
+                "rejection_reason": "too_short_network",
+                "net_length_m": round(net_end_d - net_start_d, 1),
+                "speed": speed,
+            })
+            continue
+
+        closest = min(scale_values or [speed], key=lambda v: abs(v - speed))
+        snapped = closest if abs(closest - speed) <= 5 else speed
+
+        red_line_details.append({
+            **base,
+            "y_center": round(cy_s, 1),
+            "speed_raw": speed,
+            "speed_snapped": snapped,
+            "horizontal_segments_extracted": [{
+                "x_start": round(s.x, 1),
+                "x_end": round(s.x + s.width, 1),
+                "y_avg": round(cy_s, 1),
+                "net_start": round(net_start_d),
+                "net_end": round(net_end_d),
+                "limit_value": snapped,
+            }],
+        })
+
     log = {
         "shapes_in_band": shapes_in_band,
         "scale_labels_raw": raw_label_count,
@@ -286,5 +374,7 @@ def extract_speed_limits(
         "raw_segments": len(raw_segments),
         "found_segments": len(final),
         "value_scale_points": scale_values,
+        "red_line_details": red_line_details,
+        "rejected_red_segments": rejected_red_segments,
     }
     return final, log, warnings

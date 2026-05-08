@@ -112,6 +112,8 @@ export interface ExtractionLog {
     raw_segments: number
     found_segments: number
     value_scale_points: number[]
+    red_line_details: Array<Record<string, unknown>>
+    rejected_red_segments: Array<Record<string, unknown>>
   }
   stations: {
     count: number
