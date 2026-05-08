@@ -79,7 +79,7 @@ class TestExtractCoordinateRuler:
         shapes = self._km_shapes([(100, 10), (200, 20), (300, 30)])
         band = _band("coordinate_ruler", 40, 70)
         wa = _wa(0, 500)
-        mapping, warnings = extract_coordinate_ruler(shapes, band, wa)
+        mapping, log, warnings = extract_coordinate_ruler(shapes, band, wa)
 
         assert mapping.direction == "ascending"
         assert len(mapping.points) == 3
@@ -89,7 +89,7 @@ class TestExtractCoordinateRuler:
         shapes = self._km_shapes([(100, 300), (200, 200), (300, 100)])
         band = _band("coordinate_ruler", 40, 70)
         wa = _wa(0, 500)
-        mapping, warnings = extract_coordinate_ruler(shapes, band, wa)
+        mapping, log, warnings = extract_coordinate_ruler(shapes, band, wa)
 
         assert mapping.direction == "descending"
         assert len(mapping.points) == 3
@@ -98,7 +98,7 @@ class TestExtractCoordinateRuler:
         shapes = self._km_shapes([(100, 10)])
         band = _band("coordinate_ruler", 40, 70)
         wa = _wa(0, 500)
-        mapping, warnings = extract_coordinate_ruler(shapes, band, wa)
+        mapping, log, warnings = extract_coordinate_ruler(shapes, band, wa)
 
         assert any("only 1" in w for w in warnings)
 
@@ -107,14 +107,14 @@ class TestExtractCoordinateRuler:
         shapes.append(_shape("noise", 150, 45, 10, 10, text="км"))
         band = _band("coordinate_ruler", 40, 70)
         wa = _wa(0, 500)
-        mapping, _ = extract_coordinate_ruler(shapes, band, wa)
+        mapping, _, _ = extract_coordinate_ruler(shapes, band, wa)
         assert len(mapping.points) == 2
 
     def test_shapes_outside_work_area_ignored(self):
         shapes = self._km_shapes([(100, 10), (200, 20), (600, 30)])  # 600 outside wa
         band = _band("coordinate_ruler", 40, 70)
         wa = _wa(0, 500)
-        mapping, _ = extract_coordinate_ruler(shapes, band, wa)
+        mapping, _, _ = extract_coordinate_ruler(shapes, band, wa)
         assert len(mapping.points) == 2
 
     def test_shapes_outside_band_ignored(self):
@@ -122,8 +122,44 @@ class TestExtractCoordinateRuler:
         shapes.append(_shape("outside", 300, 5, 10, 10, text="30"))  # y center = 10, outside band 40-70
         band = _band("coordinate_ruler", 40, 70)
         wa = _wa(0, 500)
-        mapping, _ = extract_coordinate_ruler(shapes, band, wa)
+        mapping, _, _ = extract_coordinate_ruler(shapes, band, wa)
         assert len(mapping.points) == 2
+
+    def test_duplicate_values_rejected(self):
+        """Values appearing ≥2 times (speed-scale contamination) are rejected."""
+        # km 10 appears twice → rejected; km 20 and 30 are unique → kept
+        shapes = self._km_shapes([(100, 10), (200, 20), (300, 30)])
+        shapes.append(_shape("dup", 50, 45, 10, 10, text="10"))  # second occurrence of 10
+        band = _band("coordinate_ruler", 40, 70)
+        wa = _wa(0, 500)
+        mapping, log, warnings = extract_coordinate_ruler(shapes, band, wa)
+
+        assert log["rejected_duplicate_values"] == 1
+        assert 10 in log["rejected_values_list"]
+        # Only km 20 and 30 survive
+        km_values = [km for _, km in mapping.points]
+        assert 10 not in km_values
+        assert len(mapping.points) == 2
+
+    def test_km_hints_used_when_no_labels(self):
+        """When no km labels are found, km hints should be used as anchors."""
+        band = _band("coordinate_ruler", 40, 70)
+        wa = _wa(0, 1000)
+        mapping, _, warnings = extract_coordinate_ruler([], band, wa, km_hint_start=100, km_hint_end=200)
+
+        assert len(mapping.points) == 2
+        assert any("hint" in w for w in warnings)
+
+    def test_log_has_required_fields(self):
+        shapes = self._km_shapes([(100, 10), (200, 20)])
+        band = _band("coordinate_ruler", 40, 70)
+        wa = _wa(0, 500)
+        _, log, _ = extract_coordinate_ruler(shapes, band, wa)
+
+        for field in ("shapes_in_band_y", "shapes_in_band_xy", "kilometer_candidates",
+                      "unique_values", "rejected_duplicate_values", "found_kilometers",
+                      "direction", "range"):
+            assert field in log
 
 
 # ── extract_profile ────────────────────────────────────────────────────────────
@@ -132,14 +168,13 @@ class TestExtractProfile:
     def test_basic_two_segments(self):
         band = _band("profile", 100, 200)
         wa = _wa(0, 1000)
-        band_mid_y = 150.0
         shapes = [
             _shape("a1", 95, 110, 10, 10, text="-8.3"),   # angle, top half
             _shape("l1", 95, 170, 10, 10, text="840"),     # length, bottom half
             _shape("a2", 195, 110, 10, 10, text="-0.1"),
             _shape("l2", 195, 170, 10, 10, text="210"),
         ]
-        segs, warnings = extract_profile(shapes, band, wa)
+        segs, log, warnings = extract_profile(shapes, band, wa)
 
         assert len(segs) == 2
         assert segs[0].angle == pytest.approx(-8.3)
@@ -152,7 +187,7 @@ class TestExtractProfile:
     def test_no_shapes_returns_empty(self):
         band = _band("profile", 100, 200)
         wa = _wa(0, 1000)
-        segs, warnings = extract_profile([], band, wa)
+        segs, log, warnings = extract_profile([], band, wa)
         assert segs == []
         assert warnings
 
@@ -164,9 +199,22 @@ class TestExtractProfile:
             _shape("a2", 195, 110, 10, 10, text="-0.1"),
             _shape("l1", 95, 170, 10, 10, text="840"),
         ]
-        segs, warnings = extract_profile(shapes, band, wa)
+        segs, log, warnings = extract_profile(shapes, band, wa)
         assert len(segs) == 1
         assert any("angle count" in w for w in warnings)
+
+    def test_comma_decimal_angle(self):
+        """Regression: '2,5' (European decimal comma) must not crash."""
+        band = _band("profile", 100, 200)
+        wa = _wa(0, 1000)
+        shapes = [
+            _shape("a1", 95, 110, 10, 10, text="2,5"),   # angle with comma separator
+            _shape("l1", 95, 170, 10, 10, text="1200"),
+        ]
+        segs, log, warnings = extract_profile(shapes, band, wa)
+        assert len(segs) == 1
+        assert segs[0].angle == pytest.approx(2.5)
+        assert segs[0].end == pytest.approx(1200.0)
 
     def test_large_integer_treated_as_length(self):
         band = _band("profile", 100, 200)
@@ -175,9 +223,21 @@ class TestExtractProfile:
             _shape("a1", 95, 110, 10, 10, text="5"),
             _shape("l1", 95, 170, 10, 10, text="1500"),
         ]
-        segs, _ = extract_profile(shapes, band, wa)
+        segs, _, _ = extract_profile(shapes, band, wa)
         assert len(segs) == 1
         assert segs[0].end == pytest.approx(1500.0)
+
+    def test_log_has_required_fields(self):
+        band = _band("profile", 100, 200)
+        wa = _wa(0, 1000)
+        shapes = [
+            _shape("a1", 95, 110, 10, 10, text="-5"),
+            _shape("l1", 95, 170, 10, 10, text="500"),
+        ]
+        _, log, _ = extract_profile(shapes, band, wa)
+        for field in ("shapes_in_band_y", "shapes_in_band_xy", "angle_count",
+                      "length_count", "found_segments", "total_length_meters"):
+            assert field in log
 
 
 # ── extract_speed_limits ───────────────────────────────────────────────────────
@@ -185,7 +245,7 @@ class TestExtractProfile:
 class TestExtractSpeedLimits:
     def _scale_shapes(self, band: HorizontalBand, wa: WorkArea) -> list[ParsedShape]:
         # Simulate speed scale labels on the left margin
-        # band y_top=200, y_bottom=400; 0 km/h at y=380, 100 km/h at y=220
+        # band y_top=200, y_bottom=400; 0 km/h at y=380, 80 km/h at y=220
         return [
             _shape("s0",  wa.x_start + 5, 375, 20, 10, text="0"),
             _shape("s40", wa.x_start + 5, 295, 20, 10, text="40"),
@@ -195,7 +255,7 @@ class TestExtractSpeedLimits:
     def test_no_shapes_returns_empty(self):
         band = _band("speed_limits", 200, 400)
         wa = _wa(0, 2000)
-        segs, stats, warnings = extract_speed_limits([], band, wa,
+        segs, log, warnings = extract_speed_limits([], band, wa,
             CoordinateMapping(points=[(0, 0), (2000, 200)], direction="ascending"))
         assert segs == []
 
@@ -208,11 +268,11 @@ class TestExtractSpeedLimits:
         scale = self._scale_shapes(band, wa)
         # Red horizontal line at y≈295 → 40 km/h, from x=100 to x=600
         red_line = _shape("rl", 100, 289, 500, 4, line_color="#ff0000")
-        segs, stats, warnings = extract_speed_limits(scale + [red_line], band, wa, coord)
+        segs, log, warnings = extract_speed_limits(scale + [red_line], band, wa, coord)
 
         assert len(segs) == 1
         assert segs[0].limit == 40
-        assert stats["used_color_filter"] is True
+        assert log["used_color_filter"] is True
 
     def test_adjacent_same_speed_merged(self):
         band = _band("speed_limits", 200, 400)
@@ -224,7 +284,7 @@ class TestExtractSpeedLimits:
         # Two adjacent red lines with same speed (y≈295 → 40 km/h)
         r1 = _shape("r1", 100, 289, 300, 4, line_color="#cc0000")
         r2 = _shape("r2", 400, 289, 300, 4, line_color="#cc0000")
-        segs, stats, _ = extract_speed_limits(scale + [r1, r2], band, wa, coord)
+        segs, log, _ = extract_speed_limits(scale + [r1, r2], band, wa, coord)
 
         assert len(segs) == 1
         assert segs[0].limit == 40
@@ -237,10 +297,33 @@ class TestExtractSpeedLimits:
         )
         scale = self._scale_shapes(band, wa)
         grey_line = _shape("gl", 100, 289, 500, 4, line_color="#888888")
-        segs, stats, warnings = extract_speed_limits(scale + [grey_line], band, wa, coord)
+        segs, log, warnings = extract_speed_limits(scale + [grey_line], band, wa, coord)
 
-        assert stats["used_color_filter"] is False
+        assert log["used_color_filter"] is False
         assert any("no red-colored" in w for w in warnings)
+
+    def test_broadened_red_tolerance(self):
+        """Colors with R=140, G=90, B=90 must be treated as red."""
+        band = _band("speed_limits", 200, 400)
+        wa = _wa(0, 2000)
+        coord = CoordinateMapping(
+            points=[(0.0, 0), (2000.0, 2000)], direction="ascending"
+        )
+        scale = self._scale_shapes(band, wa)
+        # Borderline red: R=140, G=90, B=90 → hex #8c5a5a
+        borderline_red = _shape("br", 100, 289, 500, 4, line_color="#8c5a5a")
+        segs, log, _ = extract_speed_limits(scale + [borderline_red], band, wa, coord)
+        assert log["used_color_filter"] is True
+
+    def test_log_has_required_fields(self):
+        band = _band("speed_limits", 200, 400)
+        wa = _wa(0, 2000)
+        coord = CoordinateMapping(points=[(0, 0), (2000, 200)], direction="ascending")
+        _, log, _ = extract_speed_limits([], band, wa, coord)
+        for field in ("shapes_in_band", "scale_labels_raw", "scale_labels_deduped",
+                      "scale_speeds", "candidate_line_shapes", "red_lines",
+                      "used_color_filter", "found_segments"):
+            assert field in log
 
 
 # ── extract_stations ───────────────────────────────────────────────────────────
@@ -254,7 +337,7 @@ class TestExtractStations:
             StationPoint(id="s1", x=700.0, name="Б"),
             StationPoint(id="s2", x=200.0, name="А"),
         ]
-        stations, warnings = extract_stations(pts, coord)
+        stations, log, warnings = extract_stations(pts, coord)
 
         assert len(stations) == 2
         assert stations[0]["name"] == "А"
@@ -268,7 +351,7 @@ class TestExtractStations:
             StationPoint(id="s1", x=200.0, name="А"),   # km≈180
             StationPoint(id="s2", x=800.0, name="Б"),   # km≈120
         ]
-        stations, warnings = extract_stations(pts, coord)
+        stations, log, warnings = extract_stations(pts, coord)
 
         assert stations[0]["name"] == "А"   # higher coordinate = first for descending
         assert stations[1]["name"] == "Б"
@@ -277,7 +360,7 @@ class TestExtractStations:
         coord = CoordinateMapping(
             points=[(0.0, 100), (1000.0, 200)], direction="ascending"
         )
-        stations, warnings = extract_stations([], coord)
+        stations, log, warnings = extract_stations([], coord)
         assert stations == []
         assert any("no station" in w for w in warnings)
 
@@ -286,9 +369,18 @@ class TestExtractStations:
             points=[(0.0, 1000), (1000.0, 2000)], direction="ascending"
         )
         pts = [StationPoint(id="s1", x=500.0, name="Тест")]
-        stations, _ = extract_stations(pts, coord)
+        stations, log, _ = extract_stations(pts, coord)
 
         g = stations[0]["graphical"]
         assert "coordinate" in g
         assert "fontSize" in g
         assert g["coordinate"] == stations[0]["coordinate"]
+
+    def test_log_has_count(self):
+        coord = CoordinateMapping(
+            points=[(0.0, 100), (1000.0, 200)], direction="ascending"
+        )
+        pts = [StationPoint(id="s1", x=500.0, name="X")]
+        _, log, _ = extract_stations(pts, coord)
+        assert log["count"] == 1
+        assert "coordinates" in log

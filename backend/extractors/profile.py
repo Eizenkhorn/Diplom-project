@@ -58,7 +58,7 @@ def extract_profile(
     shapes: list[ParsedShape],
     band: HorizontalBand,
     work_area: WorkArea,
-) -> tuple[list[ProfileSegment], list[str]]:
+) -> tuple[list[ProfileSegment], dict, list[str]]:
     """Parse the profile band into a list of ProfileSegment.
 
     Strategy:
@@ -70,14 +70,18 @@ def extract_profile(
        use Y position (top-half = angle, bottom-half = length).
     5. Build cumulative start/end.
 
-    Returns (segments, warnings).
+    Returns (segments, log_dict, warnings).
     """
     warnings: list[str] = []
     band_mid_y = (band.y_top + band.y_bottom) / 2
 
-    text_shapes = [
+    shapes_in_band_y = [
         s for s in shapes
-        if s.text is not None and _in_band(s, band, work_area)
+        if s.text is not None and band.y_top <= _cy(s) <= band.y_bottom
+    ]
+    text_shapes = [
+        s for s in shapes_in_band_y
+        if work_area.x_start <= _cx(s) <= work_area.x_end
     ]
 
     angles: list[tuple[float, float]] = []   # (cx, angle_value)
@@ -90,9 +94,9 @@ def extract_profile(
         cy = _cy(s)
 
         ang = _try_angle(t)
-        if ang is not None and "." not in t.replace("-", "") and "+" not in t:
-            # Pure integer — could be angle OR length
-            v_int = int(float(t))
+        if ang is not None and "." not in t and "," not in t and "+" not in t.lstrip("-"):
+            # True integer (no decimal separator) — could be angle OR length
+            v_int = int(ang)  # ang already parsed; avoids float('2,5') crash
             if v_int > 100:
                 # Can't be a realistic angle ‰
                 length = _try_length(t)
@@ -136,7 +140,16 @@ def extract_profile(
             f"profile: found {len(angles)} angle(s) and {len(lengths)} length(s) — "
             "no segments produced"
         )
-        return [], warnings
+        log = {
+            "shapes_in_band_y": len(shapes_in_band_y),
+            "shapes_in_band_xy": len(text_shapes),
+            "angle_count": len(angles),
+            "length_count": len(lengths),
+            "unclassified_count": len(unclassified),
+            "found_segments": 0,
+            "total_length_meters": 0,
+        }
+        return [], log, warnings
 
     if len(angles) != len(lengths):
         warnings.append(
@@ -154,4 +167,13 @@ def extract_profile(
         segments.append(seg)
         cursor += length_m
 
-    return segments, warnings
+    log = {
+        "shapes_in_band_y": len(shapes_in_band_y),
+        "shapes_in_band_xy": len(text_shapes),
+        "angle_count": len(angles),
+        "length_count": len(lengths),
+        "unclassified_count": len(unclassified),
+        "found_segments": len(segments),
+        "total_length_meters": cursor,
+    }
+    return segments, log, warnings

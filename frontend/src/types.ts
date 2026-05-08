@@ -79,10 +79,44 @@ export interface SpeedLimitSegment {
 }
 
 export interface ExtractionLog {
-  coordinate_ruler: { found_kilometers: number; direction: string | null; range: [number, number] | null }
-  profile: { found_segments: number; total_length_meters: number }
-  speed_limits: { found_segments: number; value_scale_points: number[]; used_color_filter: boolean }
-  stations: { count: number }
+  coordinate_ruler: {
+    shapes_in_band_y: number
+    shapes_in_band_xy: number
+    kilometer_candidates: number
+    unique_values: number
+    rejected_duplicate_values: number
+    rejected_values_list: number[]
+    monotone_points: number
+    found_kilometers: number
+    direction: string | null
+    range: [number, number] | null
+  }
+  profile: {
+    shapes_in_band_y: number
+    shapes_in_band_xy: number
+    angle_count: number
+    length_count: number
+    unclassified_count: number
+    found_segments: number
+    total_length_meters: number
+  }
+  speed_limits: {
+    shapes_in_band: number
+    scale_labels_raw: number
+    scale_labels_deduped: number
+    scale_speeds: number[]
+    candidate_line_shapes: number
+    red_lines: number
+    other_lines: number
+    used_color_filter: boolean
+    raw_segments: number
+    found_segments: number
+    value_scale_points: number[]
+  }
+  stations: {
+    count: number
+    coordinates: number[]
+  }
   warnings: string[]
 }
 

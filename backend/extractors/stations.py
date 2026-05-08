@@ -8,19 +8,24 @@ from models.markup import StationPoint
 def extract_stations(
     station_points: list[StationPoint],
     coord_mapping: CoordinateMapping,
-) -> tuple[list[dict], list[str]]:
+) -> tuple[list[dict], dict, list[str]]:
     """Convert markup StationPoints to target JSON station dicts.
 
     The `coordinate` field is in network metres (km × 1000), matching the
     coordinate system of speedLimits.start/end.
 
-    Returns (stations, warnings).
+    Returns (stations, log_dict, warnings).
     """
     warnings: list[str] = []
     stations: list[dict] = []
 
+    def _safe_round(v: float) -> int:
+        if v != v or v == float("inf") or v == float("-inf"):
+            return 0
+        return round(v)
+
     for sp in station_points:
-        net_coord = round(coord_mapping.x_to_network_coord(sp.x))
+        net_coord = _safe_round(coord_mapping.x_to_network_coord(sp.x))
 
         station = {
             "name": sp.name,
@@ -48,4 +53,8 @@ def extract_stations(
     if not stations:
         warnings.append("stations: no station points marked")
 
-    return stations, warnings
+    log = {
+        "count": len(stations),
+        "coordinates": [s["coordinate"] for s in stations],
+    }
+    return stations, log, warnings

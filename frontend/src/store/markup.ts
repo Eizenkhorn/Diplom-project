@@ -37,7 +37,7 @@ interface MarkupState {
   cancel(): void
   loadMarkup(sessionId: string): Promise<void>
   saveWorkArea(wa: WorkArea): Promise<void>
-  createBand(data: { type: BandType; y_top: number; y_bottom: number }): Promise<void>
+  createBand(data: { type: BandType; y_top: number; y_bottom: number; km_hint_start?: number; km_hint_end?: number }): Promise<void>
   deleteBand(id: string): Promise<void>
   createStation(data: { x: number; name: string }): Promise<void>
   deleteStation(id: string): Promise<void>

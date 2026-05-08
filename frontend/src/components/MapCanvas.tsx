@@ -104,6 +104,11 @@ export default function MapCanvas() {
   // local state for mark subtype selector in toolbar (persists across mode changes)
   const [markSubtypeSelect, setMarkSubtypeSelect] = useState(MARK_SUBTYPES[0].subtype)
   const [showExtraction, setShowExtraction] = useState(false)
+  // km hints for coordinate_ruler band — use refs so click handler always sees fresh values
+  const kmHintStartRef = useRef('')
+  const kmHintEndRef = useRef('')
+  const [kmHintStart, setKmHintStart] = useState('')
+  const [kmHintEnd, setKmHintEnd] = useState('')
 
   // ── resize observer ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -225,11 +230,18 @@ export default function MapCanvas() {
         useMarkupStore.getState().addPendingClick(p)
       } else {
         const y1 = pendingClicks[0].y
-        useMarkupStore.getState().createBand({
+        const bandData: Parameters<typeof useMarkupStore.getState().createBand>[0] = {
           type: activeBandType!,
           y_top: Math.min(y1, p.y),
           y_bottom: Math.max(y1, p.y),
-        })
+        }
+        if (activeBandType === 'coordinate_ruler') {
+          const hs = parseInt(kmHintStartRef.current)
+          const he = parseInt(kmHintEndRef.current)
+          if (!isNaN(hs)) bandData.km_hint_start = hs
+          if (!isNaN(he)) bandData.km_hint_end = he
+        }
+        useMarkupStore.getState().createBand(bandData)
       }
     } else if (mode === 'mark-station') {
       const screenPos = stage.getPointerPosition()!
@@ -324,6 +336,37 @@ export default function MapCanvas() {
             onClick={() => setMode('mark-band', bt.type as BandType)}
           />
         ))}
+
+        {/* KM hints for coordinate_ruler band */}
+        {mode === 'mark-band' && activeBandType === 'coordinate_ruler' && (
+          <>
+            <div style={{ width: 1, height: 20, background: '#334155', flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>от км:</span>
+            <input
+              type="number"
+              value={kmHintStart}
+              onChange={(e) => { setKmHintStart(e.target.value); kmHintStartRef.current = e.target.value }}
+              placeholder="—"
+              style={{
+                width: 56, padding: '2px 4px', background: '#0f172a', color: '#e2e8f0',
+                border: '1px solid #334155', borderRadius: 4, fontSize: 11,
+                fontFamily: 'inherit', flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>до км:</span>
+            <input
+              type="number"
+              value={kmHintEnd}
+              onChange={(e) => { setKmHintEnd(e.target.value); kmHintEndRef.current = e.target.value }}
+              placeholder="—"
+              style={{
+                width: 56, padding: '2px 4px', background: '#0f172a', color: '#e2e8f0',
+                border: '1px solid #334155', borderRadius: 4, fontSize: 11,
+                fontFamily: 'inherit', flexShrink: 0,
+              }}
+            />
+          </>
+        )}
 
         <div style={{ width: 1, height: 20, background: '#334155', flexShrink: 0 }} />
 

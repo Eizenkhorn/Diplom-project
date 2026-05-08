@@ -11,6 +11,7 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
   const [result, setResult] = useState<ExtractionResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showDiag, setShowDiag] = useState(false)
 
   async function handleExtract() {
     setLoading(true)
@@ -51,7 +52,7 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div style={{
-        background: '#fff', borderRadius: 12, width: 680, maxWidth: '95vw',
+        background: '#fff', borderRadius: 12, width: 720, maxWidth: '95vw',
         maxHeight: '90vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
@@ -170,6 +171,67 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                   />
                 </Section>
               )}
+
+              {/* Diagnostics (collapsible) */}
+              <div style={{ marginBottom: 20 }}>
+                <button
+                  onClick={() => setShowDiag((v) => !v)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '4px 0', color: '#64748b', fontSize: 11, fontWeight: 700,
+                    textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{ fontSize: 12 }}>{showDiag ? '▾' : '▸'}</span>
+                  Диагностика
+                </button>
+                {showDiag && (
+                  <div style={{ marginTop: 8 }}>
+                    <DiagSection title="Координатная шкала" entries={[
+                      ['Фигуры в полосе (Y)', String(log.coordinate_ruler.shapes_in_band_y)],
+                      ['Фигуры в полосе (X+Y)', String(log.coordinate_ruler.shapes_in_band_xy)],
+                      ['Кандидаты-километры', String(log.coordinate_ruler.kilometer_candidates)],
+                      ['Уникальных значений', String(log.coordinate_ruler.unique_values)],
+                      ['Отброшено (дубли)', String(log.coordinate_ruler.rejected_duplicate_values)],
+                      ...(log.coordinate_ruler.rejected_values_list.length > 0
+                        ? [['Отброшенные значения', log.coordinate_ruler.rejected_values_list.join(', ')]] as [string, string][]
+                        : []),
+                      ['Монотонных точек', String(log.coordinate_ruler.monotone_points)],
+                      ['Итого км-меток', String(log.coordinate_ruler.found_kilometers)],
+                      ['Направление', log.coordinate_ruler.direction ?? '—'],
+                      ['Диапазон км', log.coordinate_ruler.range ? `${log.coordinate_ruler.range[0]}–${log.coordinate_ruler.range[1]}` : '—'],
+                    ]} />
+                    <DiagSection title="Профиль пути" entries={[
+                      ['Фигуры в полосе (Y)', String(log.profile.shapes_in_band_y)],
+                      ['Фигуры в полосе (X+Y)', String(log.profile.shapes_in_band_xy)],
+                      ['Углы', String(log.profile.angle_count)],
+                      ['Длины', String(log.profile.length_count)],
+                      ['Нераспознанных', String(log.profile.unclassified_count)],
+                      ['Сегментов', String(log.profile.found_segments)],
+                      ['Суммарная длина', `${Math.round(log.profile.total_length_meters)} м`],
+                    ]} />
+                    <DiagSection title="Ограничения скорости" entries={[
+                      ['Фигур в полосе', String(log.speed_limits.shapes_in_band)],
+                      ['Меток шкалы (сырых)', String(log.speed_limits.scale_labels_raw)],
+                      ['Меток шкалы (после дедупл.)', String(log.speed_limits.scale_labels_deduped)],
+                      ['Скорости шкалы', log.speed_limits.scale_speeds.join(', ') || '—'],
+                      ['Линий-кандидатов', String(log.speed_limits.candidate_line_shapes)],
+                      ['Красных линий', String(log.speed_limits.red_lines)],
+                      ['Прочих линий', String(log.speed_limits.other_lines)],
+                      ['Фильтр по цвету', log.speed_limits.used_color_filter ? 'да' : 'нет'],
+                      ['Сырых сегментов', String(log.speed_limits.raw_segments)],
+                      ['Итого сегментов', String(log.speed_limits.found_segments)],
+                    ]} />
+                    <DiagSection title="Станции" entries={[
+                      ['Количество', String(log.stations.count)],
+                      ['Координаты (м)', log.stations.coordinates.length > 0
+                        ? log.stations.coordinates.slice(0, 10).join(', ') + (log.stations.coordinates.length > 10 ? '…' : '')
+                        : '—'],
+                    ]} />
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -202,6 +264,24 @@ function Section({ title, accent, children }: { title: string; accent?: string; 
   )
 }
 
+function DiagSection({ title, entries }: { title: string; entries: [string, string][] }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginBottom: 4, textTransform: 'uppercase' }}>
+        {title}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px' }}>
+        {entries.map(([k, v]) => (
+          <div key={k} style={{ display: 'contents' }}>
+            <span style={{ fontSize: 11, color: '#64748b', padding: '2px 0' }}>{k}</span>
+            <span style={{ fontSize: 11, color: '#1e293b', fontWeight: 500, padding: '2px 0', wordBreak: 'break-all' }}>{v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SummaryGrid({ log }: { log: ExtractionResult['_extraction_log'] }) {
   const items = [
     { label: 'Км-отметки', value: log.coordinate_ruler.found_kilometers + (log.coordinate_ruler.range ? ` (${log.coordinate_ruler.range[0]}–${log.coordinate_ruler.range[1]} км)` : ''), ok: log.coordinate_ruler.found_kilometers >= 2 },
@@ -209,7 +289,7 @@ function SummaryGrid({ log }: { log: ExtractionResult['_extraction_log'] }) {
     { label: 'Сегменты профиля', value: String(log.profile.found_segments), ok: log.profile.found_segments > 0 },
     { label: 'Длина участка', value: log.profile.total_length_meters > 0 ? `${Math.round(log.profile.total_length_meters / 1000)} км` : '—', ok: log.profile.total_length_meters > 0 },
     { label: 'Ограничения скорости', value: String(log.speed_limits.found_segments), ok: log.speed_limits.found_segments > 0 },
-    { label: 'Шкала скоростей', value: log.speed_limits.value_scale_points.join(', ') || '—', ok: log.speed_limits.value_scale_points.length > 0 },
+    { label: 'Шкала скоростей', value: log.speed_limits.scale_speeds.join(', ') || '—', ok: log.speed_limits.scale_speeds.length > 0 },
     { label: 'Станции', value: String(log.stations.count), ok: log.stations.count > 0 },
   ]
   return (

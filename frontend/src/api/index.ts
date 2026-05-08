@@ -60,7 +60,13 @@ export async function setWorkArea(sessionId: string, wa: WorkArea): Promise<Sess
 
 // ── bands ─────────────────────────────────────────────────────────────────────
 
-export interface BandCreate { type: BandType; y_top: number; y_bottom: number }
+export interface BandCreate {
+  type: BandType
+  y_top: number
+  y_bottom: number
+  km_hint_start?: number
+  km_hint_end?: number
+}
 
 export async function createBand(sessionId: string, body: BandCreate): Promise<HorizontalBand> {
   const res = await fetch(`/api/sessions/${sessionId}/markup/bands`, {

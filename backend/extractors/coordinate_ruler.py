@@ -64,47 +64,154 @@ class CoordinateMapping(BaseModel):
         if x2 == x1:
             return k1 * 1000.0
         t = (x - x1) / (x2 - x1)
-        return (k1 + t * (k2 - k1)) * 1000.0
+        result = (k1 + t * (k2 - k1)) * 1000.0
+        if not (result == result):  # NaN check
+            return k1 * 1000.0
+        return result
 
 
 def extract_coordinate_ruler(
     shapes: list[ParsedShape],
     band: HorizontalBand,
     work_area: WorkArea,
-) -> tuple[CoordinateMapping, list[str]]:
+    km_hint_start: Optional[int] = None,
+    km_hint_end: Optional[int] = None,
+) -> tuple[CoordinateMapping, dict, list[str]]:
     """Parse the coordinate ruler band into a CoordinateMapping.
 
-    Returns (mapping, warnings).
+    Algorithm:
+    1. Collect text shapes inside band Y range and work area X range.
+    2. Parse integer km labels; group by value.
+    3. Reject values appearing ≥2 times (speed-scale contamination).
+    4. Sort unique values by X; filter to monotone subsequence.
+    5. If km hints provided and no labels detected, use them as fallback anchors.
+
+    Returns (mapping, log_dict, warnings).
     """
     warnings: list[str] = []
 
-    # Filter: text shapes in band's Y range and work area's X range
-    candidates = [
-        s for s in shapes
-        if s.text is not None
-        and _in_band_y(s, band)
-        and _in_work_area_x(s, work_area)
-    ]
+    # ── 1. Filter shapes ─────────────────────────────────────────────────────────
+    shapes_in_band_y = [s for s in shapes if s.text is not None and _in_band_y(s, band)]
+    candidates = [s for s in shapes_in_band_y if _in_work_area_x(s, work_area)]
 
-    # Extract kilometer labels: integer 1-9999
-    points: list[tuple[float, int]] = []
+    log: dict = {
+        "shapes_in_band_y": len(shapes_in_band_y),
+        "shapes_in_band_xy": len(candidates),
+        "kilometer_candidates": 0,
+        "unique_values": 0,
+        "rejected_duplicate_values": 0,
+        "rejected_values_list": [],
+        "monotone_points": 0,
+        "found_kilometers": 0,
+        "direction": None,
+        "range": None,
+    }
+
+    # ── 2. Parse integer km labels; group by value ───────────────────────────────
+    value_map: dict[int, list[float]] = {}  # km_value -> list[cx]
     for s in candidates:
         m = _KM_RE.match(s.text or "")
-        if m:
-            km = int(m.group(1))
-            if 1 <= km <= 9999:
-                points.append((_shape_center_x(s), km))
+        if not m:
+            continue
+        km = int(m.group(1))
+        if not (1 <= km <= 9999):
+            continue
+        value_map.setdefault(km, []).append(_shape_center_x(s))
 
-    if len(points) < 2:
+    log["kilometer_candidates"] = sum(len(v) for v in value_map.values())
+
+    # ── 3. Reject non-unique values (≥2 occurrences = speed-scale contamination) ─
+    rejected_values: list[int] = []
+    unique_points: list[tuple[float, int]] = []  # (cx, km)
+    for km in sorted(value_map.keys()):
+        occurrences = value_map[km]
+        if len(occurrences) >= 2:
+            rejected_values.append(km)
+        else:
+            unique_points.append((occurrences[0], km))
+
+    log["unique_values"] = len(unique_points)
+    log["rejected_duplicate_values"] = len(rejected_values)
+    log["rejected_values_list"] = rejected_values[:20]
+
+    if rejected_values:
         warnings.append(
-            f"coordinate_ruler: found only {len(points)} km labels "
+            f"coordinate_ruler: rejected {len(rejected_values)} non-unique value(s) "
+            f"(likely speed-scale contamination): {rejected_values[:10]}"
+        )
+
+    # Sort by X position
+    unique_points.sort(key=lambda p: p[0])
+
+    # ── 4. Monotone subsequence filter ───────────────────────────────────────────
+    if len(unique_points) >= 2:
+        tentative_dir: Literal["ascending", "descending"] = (
+            "ascending" if unique_points[-1][1] > unique_points[0][1] else "descending"
+        )
+    else:
+        tentative_dir = "ascending"
+
+    mono: list[tuple[float, int]] = []
+    for x, km in unique_points:
+        if not mono:
+            mono.append((x, km))
+            continue
+        last_km = mono[-1][1]
+        if tentative_dir == "ascending":
+            if km > last_km:
+                mono.append((x, km))
+        else:
+            if km < last_km:
+                mono.append((x, km))
+
+    dropped = len(unique_points) - len(mono)
+    if dropped:
+        warnings.append(
+            f"coordinate_ruler: dropped {dropped} non-monotone point(s) after uniqueness filter"
+        )
+
+    log["monotone_points"] = len(mono)
+    points = mono
+
+    # ── 5. Apply km hints as anchors if provided ─────────────────────────────────
+    if km_hint_start is not None and km_hint_end is not None and work_area:
+        if not points:
+            points = [
+                (work_area.x_start, km_hint_start),
+                (work_area.x_end, km_hint_end),
+            ]
+            warnings.append(
+                f"coordinate_ruler: no km labels detected — using hints "
+                f"({km_hint_start}–{km_hint_end} km)"
+            )
+        else:
+            kms = [km for _, km in points]
+            hint_min = min(km_hint_start, km_hint_end)
+            hint_max = max(km_hint_start, km_hint_end)
+            # If detected range does not overlap with hint range at all, override
+            if max(kms) < hint_min or min(kms) > hint_max:
+                points = [
+                    (work_area.x_start, km_hint_start),
+                    (work_area.x_end, km_hint_end),
+                ]
+                warnings.append(
+                    "coordinate_ruler: detected km range doesn't match hints — "
+                    "overriding with hint anchors"
+                )
+
+    # ── 6. Determine direction ────────────────────────────────────────────────────
+    if len(points) >= 2:
+        direction: Literal["ascending", "descending"] = (
+            "ascending" if points[-1][1] > points[0][1] else "descending"
+        )
+    else:
+        direction = "ascending"
+        warnings.append(
+            f"coordinate_ruler: found only {len(points)} km label(s) "
             f"(need ≥ 2 for interpolation)"
         )
 
-    # Sort by x
-    points.sort(key=lambda p: p[0])
-
-    # Remove duplicate X positions (keep first occurrence)
+    # Remove duplicate X positions (keep first)
     deduped: list[tuple[float, int]] = []
     seen_x: set[int] = set()
     for x, km in points:
@@ -114,26 +221,12 @@ def extract_coordinate_ruler(
             seen_x.add(ix)
     points = deduped
 
-    # Detect direction from first and last km values
-    if len(points) >= 2:
-        direction: Literal["ascending", "descending"] = (
-            "ascending" if points[-1][1] > points[0][1] else "descending"
-        )
-        # Validate rough monotonicity (allow ±1 km jitter from OCR/label errors)
-        non_mono = 0
-        for i in range(1, len(points)):
-            delta = points[i][1] - points[i - 1][1]
-            if direction == "ascending" and delta < -1:
-                non_mono += 1
-            elif direction == "descending" and delta > 1:
-                non_mono += 1
-        if non_mono > len(points) // 4:
-            warnings.append(
-                f"coordinate_ruler: {non_mono} non-monotone km steps detected — "
-                "check band placement"
-            )
-    else:
-        direction = "descending"
+    # ── 7. Final log ──────────────────────────────────────────────────────────────
+    log["found_kilometers"] = len(points)
+    log["direction"] = direction
+    if points:
+        kms_final = [km for _, km in points]
+        log["range"] = [min(kms_final), max(kms_final)]
 
     mapping = CoordinateMapping(points=points, direction=direction)
-    return mapping, warnings
+    return mapping, log, warnings

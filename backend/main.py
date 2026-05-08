@@ -55,6 +55,8 @@ class BandCreate(BaseModel):
     type: BandType
     y_top: float
     y_bottom: float
+    km_hint_start: int | None = None
+    km_hint_end: int | None = None
 
 
 class BandUpdate(BaseModel):
@@ -203,7 +205,15 @@ def markup_set_work_area(session_id: str, body: WorkArea) -> SessionMarkup:
 @app.post("/api/sessions/{session_id}/markup/bands", response_model=HorizontalBand, status_code=201)
 def markup_create_band(session_id: str, body: BandCreate) -> HorizontalBand:
     session = _require_session(session_id)
-    band = HorizontalBand(id=str(uuid.uuid4()), **body.model_dump())
+    data = body.model_dump(exclude={"km_hint_start", "km_hint_end"})
+    extracted: dict = {}
+    if body.km_hint_start is not None:
+        extracted["km_hint_start"] = body.km_hint_start
+    if body.km_hint_end is not None:
+        extracted["km_hint_end"] = body.km_hint_end
+    if extracted:
+        data["extracted"] = extracted
+    band = HorizontalBand(id=str(uuid.uuid4()), **data)
     session.markup.bands.append(band)
     return band
 
@@ -335,15 +345,12 @@ def _run_extraction(session_id: str) -> dict:
         if markup.work_area is None:
             raise HTTPException(status_code=400, detail="Work area must be marked before export")
         ruler_band = ruler_bands[0]
-        coord_mapping, w = extract_coordinate_ruler(shapes, ruler_band, markup.work_area)
+        km_hint_start = ruler_band.extracted.get("km_hint_start")
+        km_hint_end = ruler_band.extracted.get("km_hint_end")
+        coord_mapping, ruler_log, w = extract_coordinate_ruler(
+            shapes, ruler_band, markup.work_area, km_hint_start, km_hint_end
+        )
         all_warnings.extend(w)
-        if coord_mapping.points:
-            kms = [km for _, km in coord_mapping.points]
-            ruler_log = {
-                "found_kilometers": len(coord_mapping.points),
-                "direction": coord_mapping.direction,
-                "range": [min(kms), max(kms)],
-            }
 
     if coord_mapping is None:
         raise HTTPException(
@@ -369,11 +376,9 @@ def _run_extraction(session_id: str) -> dict:
     profile_log: dict = {"found_segments": 0, "total_length_meters": 0}
 
     if profile_bands and wa:
-        segs, w = extract_profile(shapes, profile_bands[0], wa)
+        segs, profile_log, w = extract_profile(shapes, profile_bands[0], wa)
         all_warnings.extend(w)
         profile_segs = [s.model_dump() for s in segs]
-        total_m = segs[-1].end if segs else 0
-        profile_log = {"found_segments": len(segs), "total_length_meters": total_m}
 
     # ── Speed limits ──────────────────────────────────────────────────────────
     speed_bands = [b for b in markup.bands if b.type == "speed_limits" and not b.is_informational]
@@ -387,15 +392,20 @@ def _run_extraction(session_id: str) -> dict:
         speed_log = stats
 
     # ── Stations ─────────────────────────────────────────────────────────────
-    stations_list, w = extract_stations(markup.stations, coord_mapping)
+    stations_list, stations_log, w = extract_stations(markup.stations, coord_mapping)
     all_warnings.extend(w)
-    stations_log = {"count": len(stations_list)}
 
     # ── Marks (MarkPoints → output marks array) ───────────────────────────────
+    def _safe_round(v: float) -> int:
+        """round() that never raises on NaN/Inf."""
+        if v != v or v == float("inf") or v == float("-inf"):
+            return 0
+        return round(v)
+
     output_marks = [
         {
             "subtype": mk.subtype,
-            "coordinate": round(coord_mapping.x_to_network_coord(mk.x)),
+            "coordinate": _safe_round(coord_mapping.x_to_network_coord(mk.x)),
             "x": mk.x,
             "y": mk.y,
             "meta": mk.meta,
@@ -436,12 +446,21 @@ def _run_extraction(session_id: str) -> dict:
     }
 
 
+_log = logging.getLogger(__name__)
+
+
 # ── extract (preview) ──────────────────────────────────────────────────────────
 
 @app.get("/api/sessions/{session_id}/extract")
 def sessions_extract(session_id: str):
     """Run all extractors and return structured results + log for preview."""
-    return _run_extraction(session_id)
+    try:
+        return _run_extraction(session_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _log.exception("Extraction failed for session %s", session_id)
+        raise HTTPException(status_code=500, detail=f"Extraction error: {exc}") from exc
 
 
 # ── export (download) ──────────────────────────────────────────────────────────
@@ -449,7 +468,13 @@ def sessions_extract(session_id: str):
 @app.get("/api/sessions/{session_id}/export")
 def sessions_export(session_id: str):
     """Same as extract but omits the internal _extraction_log field."""
-    result = _run_extraction(session_id)
+    try:
+        result = _run_extraction(session_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _log.exception("Export failed for session %s", session_id)
+        raise HTTPException(status_code=500, detail=f"Export error: {exc}") from exc
     result.pop("_extraction_log", None)
     return result
 
