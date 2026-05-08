@@ -323,8 +323,41 @@ class TestExtractSpeedLimits:
         _, log, _ = extract_speed_limits([], band, wa, coord)
         for field in ("shapes_in_band", "scale_labels_raw", "scale_labels_deduped",
                       "scale_speeds", "candidate_line_shapes", "red_lines",
-                      "used_color_filter", "found_segments"):
+                      "used_color_filter", "found_segments",
+                      "scales_found", "scale_groups", "red_horizontal_with_scale_match"):
             assert field in log
+
+    def test_local_scale_used_for_nearest_red_line(self):
+        """Each red line must use its nearest local scale, not a global average."""
+        band = _band("speed_limits", 200, 400)
+        wa = _wa(0, 2000)
+        coord = CoordinateMapping(
+            points=[(0.0, 0), (2000.0, 2000)], direction="ascending"
+        )
+        # Two scale groups at x≈15 and x≈1015 (gap=1000px > 100px threshold)
+        scale_left = [
+            _shape("sl0",  15, 375, 20, 10, text="0"),   # cy=380
+            _shape("sl40", 15, 286, 20, 10, text="40"),  # cy=291
+            _shape("sl80", 15, 215, 20, 10, text="80"),  # cy=220
+        ]
+        scale_right = [
+            _shape("sr0",  1015, 375, 20, 10, text="0"),   # cy=380
+            _shape("sr60", 1015, 286, 20, 10, text="60"),  # cy=291
+            _shape("sr80", 1015, 215, 20, 10, text="80"),  # cy=220
+        ]
+        # Red line at x=100 (near left scale) → should snap to 40 km/h
+        r_left = _shape("rl", 100, 291, 300, 0, line_color="#ff0000")
+        # Red line at x=1100 (near right scale) → should snap to 60 km/h
+        r_right = _shape("rr", 1100, 291, 300, 0, line_color="#ff0000")
+
+        segs, log, _ = extract_speed_limits(
+            scale_left + scale_right + [r_left, r_right], band, wa, coord
+        )
+
+        assert log["scales_found"] == 2
+        limits = {s.limit for s in segs}
+        assert 40 in limits
+        assert 60 in limits
 
 
 # ── extract_stations ───────────────────────────────────────────────────────────

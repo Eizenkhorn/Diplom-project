@@ -216,6 +216,7 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                       ['Меток шкалы (сырых)', String(log.speed_limits.scale_labels_raw)],
                       ['Меток шкалы (дедупл.)', String(log.speed_limits.scale_labels_deduped)],
                       ['Скорости шкалы', log.speed_limits.scale_speeds.join(', ') || '—'],
+                      ['Локальных шкал', String(log.speed_limits.scales_found ?? '—')],
                       ['Красных в полосе', String(log.speed_limits.red_elements_classified?.total_red_in_band ?? log.speed_limits.red_lines)],
                       ['Горизонтальных', String(log.speed_limits.red_elements_classified?.horizontal ?? '—')],
                       ['Вертикальных (пропущено)', String(log.speed_limits.red_elements_classified?.vertical_skipped ?? '—')],

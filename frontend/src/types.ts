@@ -124,6 +124,9 @@ export interface ExtractionLog {
     merge_gaps_used: number[]
     rejected_far_from_scale: Array<Record<string, unknown>>
     rejected_short_after_merge: Array<Record<string, unknown>>
+    scales_found: number
+    scale_groups: Array<{ x_center: number; y_to_speed: Array<[number, number]> }>
+    red_horizontal_with_scale_match: Array<Record<string, unknown>>
   }
   stations: {
     count: number
