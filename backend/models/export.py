@@ -8,8 +8,8 @@ from pydantic import BaseModel
 class TrackPlanCurve(BaseModel):
     start: int            # network metres
     end: int
-    radius: int           # curve radius, metres
-    length: int           # curve length, metres
+    radius: int | None    # curve radius, metres; None if no label found
+    length: int | None    # curve length, metres; None if no label found
     direction: Literal["up", "down"]   # side from baseline
 
 

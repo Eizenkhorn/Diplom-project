@@ -68,8 +68,8 @@ export interface SessionMarkup {
 export interface TrackPlanCurve {
   start: number
   end: number
-  radius: number
-  length: number
+  radius: number | null
+  length: number | null
   direction: 'up' | 'down'
 }
 
@@ -165,21 +165,22 @@ export interface ExtractionLog {
     coordinates: number[]
   }
   track_plan: {
-    shapes_in_band: number
-    blue_shapes: number
-    step_shapes: number
-    curve_texts_found: number
-    curves_matched: number
-    unmatched_texts: number
+    shapes_in_band_total: number
+    path_segments_in_band: number
+    merged_polylines: number
+    steps_detected: number
+    curve_labels_found: number
+    labels_matched_to_steps: number
+    orphan_steps: Array<{ start: number; end: number; direction: string }>
+    orphan_labels: Array<{ cx: number; radius: number; length: number }>
   }
   locomotive_regime: {
-    loco_labels_found: number
-    line_segments_total: number
-    mode_texts_found: number
-    bands_extracted: number
+    y_groups_found: Array<{ y: number; lines_count: number; label: string; weight: number | null }>
+    rejected_y_groups_no_label: Array<{ y: number; lines_count: number }>
+    rejected_text_outside_work_area: Array<{ text: string; cx: number; cy: number }>
+    label_parsing: Array<{ raw: string; loco_type: string; weight: number | null }>
+    total_bands: number
     total_segments: number
-    loco_labels_raw: string[]
-    per_band: Array<{ label: string; lines: number; segments: number; mode_texts?: number }>
   }
   warnings: string[]
 }

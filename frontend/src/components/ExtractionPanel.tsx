@@ -157,8 +157,8 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                     rows={result.trackPlan.map((c) => [
                       String(c.start),
                       String(c.end),
-                      String(c.radius),
-                      String(c.length),
+                      c.radius != null ? String(c.radius) : '—',
+                      c.length != null ? String(c.length) : '—',
                       c.direction === 'up' ? '↑' : '↓',
                     ])}
                   />
@@ -272,24 +272,25 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                     ]} />
                     {log.track_plan && (
                       <DiagSection title="План пути" entries={[
-                        ['Фигур в полосе', String(log.track_plan.shapes_in_band)],
-                        ['Синих фигур', String(log.track_plan.blue_shapes)],
-                        ['Ступенек (bumps)', String(log.track_plan.step_shapes)],
-                        ['Текстов N/M найдено', String(log.track_plan.curve_texts_found)],
-                        ['Кривых сопоставлено', String(log.track_plan.curves_matched)],
-                        ['Несопоставленных текстов', String(log.track_plan.unmatched_texts)],
+                        ['Фигур в полосе (всего)', String(log.track_plan.shapes_in_band_total)],
+                        ['Графических сегментов', String(log.track_plan.path_segments_in_band)],
+                        ['Ломаных (после слияния)', String(log.track_plan.merged_polylines)],
+                        ['Ступенек обнаружено', String(log.track_plan.steps_detected)],
+                        ['Текстов N/M', String(log.track_plan.curve_labels_found)],
+                        ['Сопоставлено', String(log.track_plan.labels_matched_to_steps)],
+                        ['Ступенек без подписи', String(log.track_plan.orphan_steps.length)],
+                        ['Подписей без ступеньки', String(log.track_plan.orphan_labels.length)],
                       ]} />
                     )}
                     {log.locomotive_regime && (
                       <DiagSection title="Режимы тяги" entries={[
-                        ['Надписей локомотивов', String(log.locomotive_regime.loco_labels_found)],
-                        ['Подписи', log.locomotive_regime.loco_labels_raw.join(' | ') || '—'],
-                        ['Линий-сегментов в полосе', String(log.locomotive_regime.line_segments_total)],
-                        ['Текстов режимов', String(log.locomotive_regime.mode_texts_found)],
-                        ['Полос извлечено', String(log.locomotive_regime.bands_extracted)],
+                        ['Y-групп цветных линий', String(log.locomotive_regime.y_groups_found.length)],
+                        ['Групп без метки (отброшено)', String(log.locomotive_regime.rejected_y_groups_no_label.length)],
+                        ['Текстов левее WA (не использовано)', String(log.locomotive_regime.rejected_text_outside_work_area.length)],
+                        ['Полос извлечено', String(log.locomotive_regime.total_bands)],
                         ['Всего сегментов', String(log.locomotive_regime.total_segments)],
-                        ...log.locomotive_regime.per_band.map((b) => (
-                          [`${b.label}`, `линий: ${b.lines}, сег: ${b.segments}, текстов: ${b.mode_texts ?? '?'}`] as [string, string]
+                        ...log.locomotive_regime.y_groups_found.map((g) => (
+                          [`Y≈${g.y}px`, `${g.label}${g.weight != null ? ` / ${g.weight}т` : ''} (${g.lines_count} лин.)`] as [string, string]
                         )),
                       ]} />
                     )}
@@ -355,8 +356,8 @@ function SummaryGrid({ log }: { log: ExtractionResult['extraction_log'] }) {
     { label: 'Ограничения скорости', value: String(log.speed_limits.found_segments), ok: log.speed_limits.found_segments > 0 },
     { label: 'Шкала скоростей', value: log.speed_limits.scale_speeds.join(', ') || '—', ok: log.speed_limits.scale_speeds.length > 0 },
     { label: 'Станции', value: String(log.stations.count), ok: log.stations.count > 0 },
-    { label: 'Кривые плана пути', value: String(log.track_plan?.curves_matched ?? '—'), ok: (log.track_plan?.curves_matched ?? 0) > 0 },
-    { label: 'Режимы тяги', value: log.locomotive_regime ? `${log.locomotive_regime.bands_extracted} лок. / ${log.locomotive_regime.total_segments} сег.` : '—', ok: (log.locomotive_regime?.total_segments ?? 0) > 0 },
+    { label: 'Кривые плана пути', value: String(log.track_plan?.labels_matched_to_steps ?? '—'), ok: (log.track_plan?.labels_matched_to_steps ?? 0) > 0 },
+    { label: 'Режимы тяги', value: log.locomotive_regime ? `${log.locomotive_regime.total_bands} лок. / ${log.locomotive_regime.total_segments} сег.` : '—', ok: (log.locomotive_regime?.total_segments ?? 0) > 0 },
   ]
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
