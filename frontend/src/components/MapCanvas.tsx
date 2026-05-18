@@ -6,7 +6,6 @@ import { useMarkupStore } from '../store/markup'
 import type { MarkupMode } from '../store/markup'
 import { BAND_TYPES, MARK_SUBTYPES } from '../types'
 import type { BandType } from '../types'
-import ExtractionPanel from './ExtractionPanel'
 import EditPanel from './EditPanel'
 import { createSession } from '../api'
 
@@ -106,7 +105,6 @@ export default function MapCanvas() {
   const [stationName, setStationName] = useState('')
   // local state for mark subtype selector in toolbar (persists across mode changes)
   const [markSubtypeSelect, setMarkSubtypeSelect] = useState(MARK_SUBTYPES[0].subtype)
-  const [showExtraction, setShowExtraction] = useState(false)
   const [showEditPanel, setShowEditPanel] = useState(false)
   // ── file re-open ─────────────────────────────────────────────────────────────
   const newFileInputRef = useRef<HTMLInputElement>(null)
@@ -493,12 +491,7 @@ export default function MapCanvas() {
         )}
       </div>
 
-      {/* ── Extraction panel modal ── */}
-      {showExtraction && sessionId && (
-        <ExtractionPanel sessionId={sessionId} onClose={() => setShowExtraction(false)} />
-      )}
-
-      {/* ── Edit panel modal ── */}
+      {/* ── Combined extract + edit panel modal ── */}
       {showEditPanel && sessionId && (
         <EditPanel
           sessionId={sessionId}
@@ -853,24 +846,14 @@ export default function MapCanvas() {
           {/* Export */}
           <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button
-              onClick={() => setShowExtraction(true)}
+              onClick={() => setShowEditPanel(true)}
               style={{
                 display: 'block', width: '100%', padding: '8px', background: '#10b981', color: '#fff',
                 border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
                 textAlign: 'center', cursor: 'pointer',
               }}
             >
-              Извлечь данные…
-            </button>
-            <button
-              onClick={() => setShowEditPanel(true)}
-              style={{
-                display: 'block', width: '100%', padding: '8px', background: '#f59e0b', color: '#fff',
-                border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
-                textAlign: 'center', cursor: 'pointer',
-              }}
-            >
-              Редактировать данные…
+              Извлечь и редактировать…
             </button>
             <a
               href={`/api/sessions/${sessionId}/export`}
