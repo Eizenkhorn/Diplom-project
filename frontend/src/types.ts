@@ -113,6 +113,11 @@ export interface ExtractionLog {
     found_kilometers: number
     direction: string | null
     range: [number, number] | null
+    segments_detected: number
+    segments_details: Array<{ kilometer_range: [number, number]; x_range: [number, number]; direction: string; points_count: number }>
+    gaps_found: Array<{ between_x: [number, number]; from_km: number; to_km: number; delta: number }>
+    missing_kilometers_in_segments: number[]
+    rejected_non_monotonic_segments: Array<{ points_count: number; violation_ratio: number; km_range: [number, number] }>
   }
   profile: {
     format_detected?: 'A' | 'B'

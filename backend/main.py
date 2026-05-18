@@ -16,7 +16,7 @@ from models.markup_types import BAND_TYPES, MARK_SUBTYPES
 from models.parsed import ParsedDocument, ParsedShape
 from parser import parse_visio_file
 from session.store import create_session, get_session
-from extractors.coordinate_ruler import extract_coordinate_ruler, CoordinateMapping
+from extractors.coordinate_ruler import extract_coordinate_ruler, CoordinateMapping, CoordSegment
 from extractors.locomotive_regime import extract_locomotive_regimes
 from extractors.profile import extract_profile
 from extractors.speed_limits import extract_speed_limits, _is_red
@@ -144,8 +144,9 @@ async def sessions_create(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> SessionCreateResponse:
+    original_name = os.path.splitext(file.filename or "")[0]
     doc, svg_path, tmpdirs = await _save_and_parse(file, background_tasks)
-    sid = create_session(doc, svg_path, tmpdirs)
+    sid = create_session(doc, svg_path, tmpdirs, original_filename=original_name)
     return SessionCreateResponse(
         session_id=sid,
         page_width=doc.page_width,
@@ -322,9 +323,7 @@ def _run_extraction(session_id: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     ts = int(datetime.now(timezone.utc).timestamp() * 1000)
 
-    # Derive a human-readable name from the stored filename (session has no filename
-    # field yet; fall back to the session id prefix)
-    doc_name = session_id[:8]
+    doc_name = session.original_filename or session_id[:8]
 
     # ── Coordinate ruler ──────────────────────────────────────────────────────
     ruler_bands = [b for b in markup.bands if b.type == "coordinate_ruler"]
@@ -340,8 +339,10 @@ def _run_extraction(session_id: str) -> dict:
         if markup.work_area:
             wa = markup.work_area
             coord_mapping = CoordinateMapping(
-                points=[(wa.x_start, 0), (wa.x_end, int((wa.x_end - wa.x_start) // 1000))],
-                direction="ascending",
+                segments=[CoordSegment(
+                    points=[(wa.x_start, 0), (wa.x_end, int((wa.x_end - wa.x_start) // 1000))],
+                    direction="ascending",
+                )]
             )
     else:
         if markup.work_area is None:
@@ -364,13 +365,11 @@ def _run_extraction(session_id: str) -> dict:
 
     # ── Coordinate ruler → coordinateRuler.segments ───────────────────────────
     ruler_segments: list[dict] = []
-    if coord_mapping.points:
-        kms = [km for _, km in coord_mapping.points]
-        ruler_segments = [{
-            "startCoordinate": kms[0] if coord_mapping.direction == "descending" else kms[-1],
-            "endCoordinate": kms[-1] if coord_mapping.direction == "descending" else kms[0],
-            "adjustments": [],
-        }]
+    for _rseg in coord_mapping.segments:
+        if not _rseg.points:
+            continue
+        _kms = [km for _, km in _rseg.points]
+        ruler_segments.append({"startCoordinate": _kms[0], "endCoordinate": _kms[-1], "adjustments": []})
 
     # ── Profile ───────────────────────────────────────────────────────────────
     profile_bands = [b for b in markup.bands if b.type == "profile" and not b.is_informational]
@@ -392,6 +391,12 @@ def _run_extraction(session_id: str) -> dict:
         all_warnings.extend(w)
         speed_segs = [s.model_dump() for s in segs]
         speed_log = stats
+        for _spd in segs:
+            if coord_mapping.crosses_km_boundary(_spd.start, _spd.end):
+                all_warnings.append(
+                    f"speed_limits: сегмент {_spd.limit} км/ч "
+                    f"({_spd.start}–{_spd.end} м) пересекает границу км-системы"
+                )
 
     # ── Stations ─────────────────────────────────────────────────────────────
     stations_list, stations_log, w = extract_stations(markup.stations, coord_mapping)

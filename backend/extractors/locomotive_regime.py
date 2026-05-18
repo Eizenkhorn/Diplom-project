@@ -266,4 +266,10 @@ def extract_locomotive_regimes(
     log["total_bands"]    = len(result_bands)
     log["total_segments"] = total_segs
 
+    if not log["y_groups_found"]:
+        warnings.append(
+            "Полосы режимов тяги не распознаны автоматически. "
+            "Используйте EditPanel для ручного добавления."
+        )
+
     return result_bands, log, warnings

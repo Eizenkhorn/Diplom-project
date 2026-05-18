@@ -27,6 +27,8 @@ from models.markup import HorizontalBand, WorkArea
 from models.parsed import ParsedShape
 
 _CURVE_LABEL_RE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")
+_RADIUS_ONLY_RE = re.compile(r"^\s*(\d+)\s*$")
+_RADIUS_MIN, _RADIUS_MAX = 100, 20_000
 
 _STEP_THRESHOLD_PX    = 5.0    # cy must deviate > this from baseline to be a step
 _STEP_GROUP_GAP_PX    = 20.0   # x-gap between step shapes → new step group
@@ -108,13 +110,19 @@ def extract_track_plan(
     )
 
     # ── N/M labels ────────────────────────────────────────────────────────────
-    curve_labels: list[tuple[float, int, int]] = []   # (cx, radius, length)
+    curve_labels: list[tuple[float, int, int | None]] = []   # (cx, radius, length_or_None)
     for s in in_band_all:
         if not s.text:
             continue
         m = _CURVE_LABEL_RE.match(s.text)
         if m:
             curve_labels.append((_cx(s), int(m.group(1)), int(m.group(2))))
+            continue
+        m2 = _RADIUS_ONLY_RE.match(s.text)
+        if m2:
+            r_val = int(m2.group(1))
+            if _RADIUS_MIN <= r_val <= _RADIUS_MAX:
+                curve_labels.append((_cx(s), r_val, None))
 
     # ── connected polyline groups ─────────────────────────────────────────────
     polyline_groups: list[list[ParsedShape]] = []

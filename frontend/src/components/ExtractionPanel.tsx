@@ -226,6 +226,16 @@ export default function ExtractionPanel({ sessionId, onClose }: Props) {
                       ['Итого км-меток', String(log.coordinate_ruler.found_kilometers)],
                       ['Направление', log.coordinate_ruler.direction ?? '—'],
                       ['Диапазон км', log.coordinate_ruler.range ? `${log.coordinate_ruler.range[0]}–${log.coordinate_ruler.range[1]}` : '—'],
+                      ['Сегментов обнаружено', String(log.coordinate_ruler.segments_detected)],
+                      ...(log.coordinate_ruler.gaps_found.length > 0
+                        ? [['Разрывов (разн. км-сист.)', String(log.coordinate_ruler.gaps_found.length)]] as [string, string][]
+                        : []),
+                      ...(log.coordinate_ruler.missing_kilometers_in_segments.length > 0
+                        ? [['Пропущенных км-меток', log.coordinate_ruler.missing_kilometers_in_segments.slice(0, 20).join(', ')]] as [string, string][]
+                        : []),
+                      ...(log.coordinate_ruler.rejected_non_monotonic_segments.length > 0
+                        ? [['Отброшено немонот. сегм.', String(log.coordinate_ruler.rejected_non_monotonic_segments.length)]] as [string, string][]
+                        : []),
                     ]} />
                     <DiagSection title="Профиль пути" entries={[
                       ['Формат', log.profile.format_detected ?? '—'],

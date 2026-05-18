@@ -13,14 +13,23 @@ class Session:
     tmpdirs: list[str] = field(default_factory=list)
     markup: SessionMarkup = field(default_factory=SessionMarkup)
     edited_data: dict | None = None
+    original_filename: str = ""
 
 
 sessions: dict[str, Session] = {}
 
 
-def create_session(doc: ParsedDocument, svg_path: str, tmpdirs: list[str]) -> str:
+def create_session(
+    doc: ParsedDocument,
+    svg_path: str,
+    tmpdirs: list[str],
+    original_filename: str = "",
+) -> str:
     sid = str(uuid.uuid4())
-    sessions[sid] = Session(doc=doc, svg_path=svg_path, tmpdirs=tmpdirs)
+    sessions[sid] = Session(
+        doc=doc, svg_path=svg_path, tmpdirs=tmpdirs,
+        original_filename=original_filename,
+    )
     return sid
 
 

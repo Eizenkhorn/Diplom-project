@@ -5,18 +5,23 @@ import { MARK_SUBTYPES } from '../types'
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
-type TabId = 'warnings' | 'ruler' | 'profile' | 'speed' | 'stations' | 'marks'
+type TabId = 'warnings' | 'ruler' | 'profile' | 'speed' | 'stations' | 'marks' | 'trackplan' | 'loco'
 
-interface PRow { start: number; end: number; angle: number }
-interface SRow { start: number; end: number; limit: number; type: string }
+interface PRow  { start: number; end: number; angle: number }
+interface SRow  { start: number; end: number; limit: number; type: string }
 interface StRow { name: string; coordinate: number; graphical: Record<string, unknown> }
-interface MRow { subtype: string; coordinate: number; x: number; y: number; meta: Record<string, unknown> }
+interface MRow  { subtype: string; coordinate: number; x: number; y: number; meta: Record<string, unknown> }
+interface TRow  { start: number; end: number; radius: number | null; length: number | null; direction: 'up' | 'down' }
+interface LSeg  { start: number; end: number; mode: string; mode_label: string; color: string }
+interface LBand { locomotive_type: string; weight: number | null; raw_label: string; segments: LSeg[] }
 
 interface EditState {
   profile: PRow[]
   speed: SRow[]
   stations: StRow[]
   marks: MRow[]
+  trackPlan: TRow[]
+  locoBands: LBand[]
   rulerStart: number
   rulerEnd: number
 }
@@ -50,7 +55,6 @@ function intOrOld<T>(val: string, old: T): number | T {
   return isNaN(n) ? old : n
 }
 
-function fmtM(m: number) { return (m / 1000).toFixed(3) + ' км' }
 function fmtKm(m: number) { return Math.round(m / 1000) + ' км' }
 
 // ── sub-components ─────────────────────────────────────────────────────────────
@@ -108,11 +112,12 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
   const [editCell, setEditCell] = useState<EditCell | null>(null)
   const [editVal, setEditVal] = useState('')
 
-  // add-row form state per section
-  const [addProfile, setAddProfile] = useState<Partial<PRow>>({})
-  const [addSpeed, setAddSpeed] = useState<Partial<SRow>>({})
-  const [addStation, setAddStation] = useState<Partial<StRow>>({})
-  const [addMark, setAddMark] = useState<Partial<MRow>>({})
+  const [addProfile,   setAddProfile]   = useState<Partial<PRow>>({})
+  const [addSpeed,     setAddSpeed]     = useState<Partial<SRow>>({})
+  const [addStation,   setAddStation]   = useState<Partial<StRow>>({})
+  const [addMark,      setAddMark]      = useState<Partial<MRow>>({})
+  const [addTrackPlan, setAddTrackPlan] = useState<Partial<TRow>>({})
+  const [addLocoBand,  setAddLocoBand]  = useState<{ locomotive_type: string; weight: string }>({ locomotive_type: '', weight: '' })
 
   // ── extract ──────────────────────────────────────────────────────────────────
 
@@ -132,12 +137,19 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
 
   function toEditState(r: ExtractionResult): EditState {
     return {
-      profile: r.profile.map(s => ({ ...s })),
-      speed: r.speedLimits.map(s => ({ ...s })),
-      stations: r.stations.map(s => ({ name: s.name, coordinate: s.coordinate, graphical: s.graphical })),
-      marks: r.marks.map(m => ({ subtype: m.subtype, coordinate: m.coordinate, x: m.x, y: m.y, meta: m.meta })),
+      profile:   r.profile.map(s => ({ ...s })),
+      speed:     r.speedLimits.map(s => ({ ...s })),
+      stations:  r.stations.map(s => ({ name: s.name, coordinate: s.coordinate, graphical: s.graphical })),
+      marks:     r.marks.map(m => ({ subtype: m.subtype, coordinate: m.coordinate, x: m.x, y: m.y, meta: m.meta })),
+      trackPlan: (r.trackPlan ?? []).map(c => ({ ...c })),
+      locoBands: (r.locomotiveRegimeBands ?? []).map(b => ({
+        locomotive_type: b.locomotive_type,
+        weight:          b.weight,
+        raw_label:       b.raw_label,
+        segments:        b.segments.map(s => ({ ...s })),
+      })),
       rulerStart: r.coordinateRuler.segments[0]?.startCoordinate ?? 0,
-      rulerEnd: r.coordinateRuler.segments[0]?.endCoordinate ?? 0,
+      rulerEnd:   r.coordinateRuler.segments[0]?.endCoordinate ?? 0,
     }
   }
 
@@ -172,7 +184,41 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
       e.marks = rows
     } else if (t === 'ruler') {
       if (field === 'rulerStart') e.rulerStart = numOrOld(editVal, e.rulerStart) as number
-      if (field === 'rulerEnd') e.rulerEnd = numOrOld(editVal, e.rulerEnd) as number
+      if (field === 'rulerEnd')   e.rulerEnd   = numOrOld(editVal, e.rulerEnd)   as number
+    } else if (t === 'trackplan') {
+      const rows = [...e.trackPlan]
+      if (field === 'direction') {
+        rows[idx] = { ...rows[idx], direction: (editVal === 'up' || editVal === 'down') ? editVal : rows[idx].direction }
+      } else if (field === 'radius' || field === 'length') {
+        const trimmed = editVal.trim()
+        const n = parseInt(trimmed, 10)
+        rows[idx] = { ...rows[idx], [field]: trimmed === '' || isNaN(n) ? null : n }
+      } else {
+        rows[idx] = { ...rows[idx], [field]: numOrOld(editVal, rows[idx][field as keyof TRow] as number) }
+      }
+      e.trackPlan = rows
+    } else if (t === 'loco') {
+      const bands = [...e.locoBands]
+      if (field.startsWith('seg_')) {
+        // field format: "seg_{segIdx}_{fieldName}"
+        const rest = field.slice(4)
+        const sepIdx = rest.indexOf('_')
+        const si = parseInt(rest.slice(0, sepIdx), 10)
+        const sf = rest.slice(sepIdx + 1)
+        const segs = [...bands[idx].segments]
+        if (sf === 'start' || sf === 'end') {
+          segs[si] = { ...segs[si], [sf]: numOrOld(editVal, segs[si][sf]) as number }
+        } else {
+          segs[si] = { ...segs[si], [sf]: editVal }
+        }
+        bands[idx] = { ...bands[idx], segments: segs }
+      } else if (field === 'weight') {
+        const n = parseInt(editVal, 10)
+        bands[idx] = { ...bands[idx], weight: isNaN(n) ? null : n }
+      } else {
+        bands[idx] = { ...bands[idx], [field]: editVal }
+      }
+      e.locoBands = bands
     }
     setEdit(e); setEditCell(null)
   }
@@ -180,11 +226,35 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
   function deleteRow(t: TabId, idx: number) {
     if (!edit) return
     const e = { ...edit }
-    if (t === 'profile') e.profile = edit.profile.filter((_, i) => i !== idx)
-    else if (t === 'speed') e.speed = edit.speed.filter((_, i) => i !== idx)
+    if      (t === 'profile')  e.profile  = edit.profile.filter( (_, i) => i !== idx)
+    else if (t === 'speed')    e.speed    = edit.speed.filter(   (_, i) => i !== idx)
     else if (t === 'stations') e.stations = edit.stations.filter((_, i) => i !== idx)
-    else if (t === 'marks') e.marks = edit.marks.filter((_, i) => i !== idx)
+    else if (t === 'marks')    e.marks    = edit.marks.filter(   (_, i) => i !== idx)
     setEdit(e)
+  }
+
+  function deleteTrackPlanRow(idx: number) {
+    if (!edit) return
+    setEdit({ ...edit, trackPlan: edit.trackPlan.filter((_, i) => i !== idx) })
+  }
+
+  function deleteLocoBand(bi: number) {
+    if (!edit) return
+    setEdit({ ...edit, locoBands: edit.locoBands.filter((_, i) => i !== bi) })
+  }
+
+  function deleteLocoSeg(bi: number, si: number) {
+    if (!edit) return
+    const bands = [...edit.locoBands]
+    bands[bi] = { ...bands[bi], segments: bands[bi].segments.filter((_, i) => i !== si) }
+    setEdit({ ...edit, locoBands: bands })
+  }
+
+  function addLocoSegToBand(bi: number, seg: LSeg) {
+    if (!edit) return
+    const bands = [...edit.locoBands]
+    bands[bi] = { ...bands[bi], segments: [...bands[bi].segments, seg] }
+    setEdit({ ...edit, locoBands: bands })
   }
 
   // ── navigation ───────────────────────────────────────────────────────────────
@@ -207,13 +277,14 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
         coordinateRuler: {
           segments: [{ startCoordinate: edit.rulerStart, endCoordinate: edit.rulerEnd, adjustments: [] }],
         },
-        stations: edit.stations,
-        profile: edit.profile,
-        speedLimits: edit.speed,
-        locomotives: [], cars: [], canvasLayers: [], trackPlan: [],
-        optimalSpeedCurve: [], speedCurve: [], optimalRegimeBands: [],
-        locomotiveRegimeBands: [], longitudinalForces: [],
-        marks: edit.marks,
+        stations:             edit.stations,
+        profile:              edit.profile,
+        speedLimits:          edit.speed,
+        trackPlan:            edit.trackPlan,
+        locomotiveRegimeBands: edit.locoBands,
+        locomotives: [], cars: [], canvasLayers: [],
+        optimalSpeedCurve: [], speedCurve: [], optimalRegimeBands: [], longitudinalForces: [],
+        marks:          edit.marks,
         extraction_log: result.extraction_log,
       })
       setSaved(true); setTimeout(() => setSaved(false), 3000)
@@ -239,7 +310,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
     }
   }
 
-  // ── cell renderer ─────────────────────────────────────────────────────────────
+  // ── cell renderer ──────────────────────────────────────────────────────────────
 
   const cellStyle: React.CSSProperties = {
     padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, color: '#1e293b',
@@ -267,7 +338,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
     )
   }
 
-  // ── table structure ───────────────────────────────────────────────────────────
+  // ── table helpers ────────────────────────────────────────────────────────────
 
   const TH = ({ children }: { children: React.ReactNode }) => (
     <th style={{ padding: '5px 8px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, whiteSpace: 'nowrap' }}>
@@ -302,7 +373,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
-        background: '#fff', borderRadius: 12, width: 860, maxWidth: '96vw',
+        background: '#fff', borderRadius: 12, width: 900, maxWidth: '96vw',
         maxHeight: '92vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
@@ -345,12 +416,14 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
           <>
             {/* Tab bar */}
             <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', paddingLeft: 12, flexShrink: 0, overflowX: 'auto' }}>
-              <TabBtn id="warnings" label="Предупреждения" active={tab === 'warnings'} badge={allWarns} onClick={() => setTab('warnings')} />
-              <TabBtn id="ruler" label="Координ. шкала" active={tab === 'ruler'} onClick={() => setTab('ruler')} />
-              <TabBtn id="profile" label={`Профиль (${edit.profile.length})`} active={tab === 'profile'} onClick={() => setTab('profile')} />
-              <TabBtn id="speed" label={`Скорости (${edit.speed.length})`} active={tab === 'speed'} onClick={() => setTab('speed')} />
-              <TabBtn id="stations" label={`Станции (${edit.stations.length})`} active={tab === 'stations'} onClick={() => setTab('stations')} />
-              <TabBtn id="marks" label={`Метки (${edit.marks.length})`} active={tab === 'marks'} onClick={() => setTab('marks')} />
+              <TabBtn id="warnings"  label="Предупреждения"               active={tab === 'warnings'}  badge={allWarns} onClick={() => setTab('warnings')} />
+              <TabBtn id="ruler"     label="Координ. шкала"               active={tab === 'ruler'}                      onClick={() => setTab('ruler')} />
+              <TabBtn id="profile"   label={`Профиль (${edit.profile.length})`}   active={tab === 'profile'}   onClick={() => setTab('profile')} />
+              <TabBtn id="speed"     label={`Скорости (${edit.speed.length})`}     active={tab === 'speed'}     onClick={() => setTab('speed')} />
+              <TabBtn id="stations"  label={`Станции (${edit.stations.length})`}   active={tab === 'stations'}  onClick={() => setTab('stations')} />
+              <TabBtn id="trackplan" label={`План пути (${edit.trackPlan.length})`} active={tab === 'trackplan'} onClick={() => setTab('trackplan')} />
+              <TabBtn id="loco"      label={`Режимы тяги (${edit.locoBands.length})`} active={tab === 'loco'}   onClick={() => setTab('loco')} />
+              <TabBtn id="marks"     label={`Метки (${edit.marks.length})`}         active={tab === 'marks'}     onClick={() => setTab('marks')} />
             </div>
 
             {/* Body */}
@@ -426,7 +499,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                         <tr key={i} style={rowHover} onClick={() => navigate((row.start + row.end) / 2)}>
                           <td style={{ ...cellStyle, color: '#94a3b8', width: 32 }}>{i + 1}</td>
                           <Cell t="profile" idx={i} field="start" value={Math.round(row.start)} />
-                          <Cell t="profile" idx={i} field="end" value={Math.round(row.end)} />
+                          <Cell t="profile" idx={i} field="end"   value={Math.round(row.end)} />
                           <Cell t="profile" idx={i} field="angle" value={row.angle} />
                           <DelBtn onClick={e => { (e as unknown as React.MouseEvent).stopPropagation?.(); deleteRow('profile', i) }} />
                         </tr>
@@ -447,9 +520,9 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                         <tr key={i} style={rowHover} onClick={() => navigate((row.start + row.end) / 2)}>
                           <td style={{ ...cellStyle, color: '#94a3b8', width: 32 }}>{i + 1}</td>
                           <Cell t="speed" idx={i} field="start" value={Math.round(row.start)} />
-                          <Cell t="speed" idx={i} field="end" value={Math.round(row.end)} />
+                          <Cell t="speed" idx={i} field="end"   value={Math.round(row.end)} />
                           <Cell t="speed" idx={i} field="limit" value={row.limit} />
-                          <Cell t="speed" idx={i} field="type" value={row.type} />
+                          <Cell t="speed" idx={i} field="type"  value={row.type} />
                           <DelBtn onClick={e => { (e as unknown as React.MouseEvent).stopPropagation?.(); deleteRow('speed', i) }} />
                         </tr>
                       ))}
@@ -471,7 +544,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                       {edit.stations.map((row, i) => (
                         <tr key={i} style={rowHover} onClick={() => navigate(row.coordinate)}>
                           <td style={{ ...cellStyle, color: '#94a3b8', width: 32 }}>{i + 1}</td>
-                          <Cell t="stations" idx={i} field="name" value={row.name} />
+                          <Cell t="stations" idx={i} field="name"       value={row.name} />
                           <Cell t="stations" idx={i} field="coordinate" value={Math.round(row.coordinate)} />
                           <DelBtn onClick={e => { (e as unknown as React.MouseEvent).stopPropagation?.(); deleteRow('stations', i) }} />
                         </tr>
@@ -479,6 +552,139 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                     </tbody>
                   </table>
                   <AddStationRow onAdd={row => setEdit(e => e ? { ...e, stations: [...e.stations, row] } : e)} state={addStation} setState={setAddStation} />
+                </div>
+              )}
+
+              {/* ── Track plan ── */}
+              {tab === 'trackplan' && (
+                <div>
+                  {edit.trackPlan.length === 0
+                    ? <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 12 }}>Кривых нет. Добавьте вручную:</div>
+                    : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr><TH>#</TH><TH>Нач. (м)</TH><TH>Кон. (м)</TH><TH>Радиус м</TH><TH>Длина м</TH><TH>Напр.</TH><TH></TH></tr>
+                        </thead>
+                        <tbody>
+                          {edit.trackPlan.map((row, i) => (
+                            <tr key={i} style={rowHover} onClick={() => navigate((row.start + row.end) / 2)}>
+                              <td style={{ ...cellStyle, color: '#94a3b8', width: 32 }}>{i + 1}</td>
+                              <Cell t="trackplan" idx={i} field="start"     value={row.start} />
+                              <Cell t="trackplan" idx={i} field="end"       value={row.end} />
+                              <Cell t="trackplan" idx={i} field="radius"    value={row.radius ?? ''} />
+                              <Cell t="trackplan" idx={i} field="length"    value={row.length ?? ''} />
+                              <Cell t="trackplan" idx={i} field="direction" value={row.direction} />
+                              <td style={{ ...cellStyle, textAlign: 'center', width: 32 }}>
+                                <button onClick={ev => { ev.stopPropagation(); deleteTrackPlanRow(i) }} title="Удалить" style={{
+                                  padding: '1px 5px', background: 'transparent', border: '1px solid #fca5a5',
+                                  borderRadius: 3, color: '#ef4444', cursor: 'pointer', fontSize: 11,
+                                }}>×</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )
+                  }
+                  <AddTrackPlanRow onAdd={row => setEdit(e => e ? { ...e, trackPlan: [...e.trackPlan, row] } : e)} state={addTrackPlan} setState={setAddTrackPlan} />
+                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
+                    Направление: «up» — выше базовой линии, «down» — ниже. Радиус и длина могут быть пустыми.
+                  </p>
+                </div>
+              )}
+
+              {/* ── Loco regimes ── */}
+              {tab === 'loco' && (
+                <div>
+                  {edit.locoBands.length === 0 && (
+                    <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 12 }}>
+                      Полос режимов нет. Добавьте новую полосу:
+                    </div>
+                  )}
+                  {edit.locoBands.map((band, bi) => (
+                    <div key={bi} style={{ marginBottom: 20, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+                      {/* Band header */}
+                      <div style={{ background: '#f8fafc', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Локомотив:</span>
+                        <Cell t="loco" idx={bi} field="locomotive_type" value={band.locomotive_type} />
+                        <span style={{ fontSize: 11, color: '#64748b' }}>масса (т):</span>
+                        <Cell t="loco" idx={bi} field="weight" value={band.weight ?? ''} />
+                        <button
+                          onClick={() => deleteLocoBand(bi)}
+                          style={{ marginLeft: 'auto', padding: '3px 10px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 4, color: '#ef4444', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}
+                        >
+                          × Удалить полосу
+                        </button>
+                      </div>
+                      {/* Segments table */}
+                      {band.segments.length === 0
+                        ? <div style={{ padding: '8px 12px', fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Сегментов нет</div>
+                        : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                              <tr><TH>Нач. (м)</TH><TH>Кон. (м)</TH><TH>Режим</TH><TH>Надпись</TH><TH>Цвет</TH><TH></TH></tr>
+                            </thead>
+                            <tbody>
+                              {band.segments.map((seg, si) => (
+                                <tr key={si} style={rowHover} onClick={() => navigate((seg.start + seg.end) / 2)}>
+                                  <Cell t="loco" idx={bi} field={`seg_${si}_start`}      value={seg.start} />
+                                  <Cell t="loco" idx={bi} field={`seg_${si}_end`}        value={seg.end} />
+                                  <Cell t="loco" idx={bi} field={`seg_${si}_mode`}       value={seg.mode} />
+                                  <Cell t="loco" idx={bi} field={`seg_${si}_mode_label`} value={seg.mode_label || '—'} />
+                                  <Cell t="loco" idx={bi} field={`seg_${si}_color`}      value={seg.color} />
+                                  <td style={{ ...cellStyle, textAlign: 'center', width: 32 }}>
+                                    <button onClick={ev => { ev.stopPropagation(); deleteLocoSeg(bi, si) }} title="Удалить" style={{
+                                      padding: '1px 5px', background: 'transparent', border: '1px solid #fca5a5',
+                                      borderRadius: 3, color: '#ef4444', cursor: 'pointer', fontSize: 11,
+                                    }}>×</button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )
+                      }
+                      {/* Add segment form */}
+                      <div style={{ padding: '8px 12px', borderTop: '1px solid #f1f5f9' }}>
+                        <AddLocoSegRow onAdd={seg => addLocoSegToBand(bi, seg)} />
+                      </div>
+                    </div>
+                  ))}
+                  {/* Add band form */}
+                  <div style={{ marginTop: 8, padding: '10px 12px', border: '1px dashed #cbd5e1', borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Добавить полосу локомотива
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <input
+                        style={{ ...addInput(160) }} placeholder="Тип локомотива (2ТЭ116)"
+                        value={addLocoBand.locomotive_type}
+                        onChange={e => setAddLocoBand(s => ({ ...s, locomotive_type: e.target.value }))}
+                      />
+                      <input
+                        style={{ ...addInput(90) }} placeholder="Масса т" type="number"
+                        value={addLocoBand.weight}
+                        onChange={e => setAddLocoBand(s => ({ ...s, weight: e.target.value }))}
+                      />
+                      <button onClick={() => {
+                        if (!addLocoBand.locomotive_type.trim()) return
+                        const w = parseInt(addLocoBand.weight, 10)
+                        const newBand: LBand = {
+                          locomotive_type: addLocoBand.locomotive_type.trim(),
+                          weight: isNaN(w) ? null : w,
+                          raw_label: addLocoBand.locomotive_type.trim(),
+                          segments: [],
+                        }
+                        setEdit(e => e ? { ...e, locoBands: [...e.locoBands, newBand] } : e)
+                        setAddLocoBand({ locomotive_type: '', weight: '' })
+                      }} style={{ padding: '4px 10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        + Добавить полосу
+                      </button>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
+                    Режим: traction / coasting / braking / unknown. Цвет в формате #rrggbb.
+                  </p>
                 </div>
               )}
 
@@ -494,10 +700,10 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                           {edit.marks.map((row, i) => (
                             <tr key={i} style={rowHover} onClick={() => navigate(row.coordinate)}>
                               <td style={{ ...cellStyle, color: '#94a3b8', width: 32 }}>{i + 1}</td>
-                              <Cell t="marks" idx={i} field="subtype" value={row.subtype} />
+                              <Cell t="marks" idx={i} field="subtype"    value={row.subtype} />
                               <Cell t="marks" idx={i} field="coordinate" value={Math.round(row.coordinate)} />
-                              <Cell t="marks" idx={i} field="x" value={Math.round(row.x)} />
-                              <Cell t="marks" idx={i} field="y" value={Math.round(row.y)} />
+                              <Cell t="marks" idx={i} field="x"          value={Math.round(row.x)} />
+                              <Cell t="marks" idx={i} field="y"          value={Math.round(row.y)} />
                               <DelBtn onClick={e => { (e as unknown as React.MouseEvent).stopPropagation?.(); deleteRow('marks', i) }} />
                             </tr>
                           ))}
@@ -517,7 +723,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
   )
 }
 
-// ── add-row forms ─────────────────────────────────────────────────────────────
+// ── shared input style ─────────────────────────────────────────────────────────
 
 const addRowStyle: React.CSSProperties = {
   display: 'flex', gap: 6, alignItems: 'center', marginTop: 8, flexWrap: 'wrap',
@@ -526,6 +732,8 @@ const addInput = (w?: number): React.CSSProperties => ({
   width: w ?? 100, padding: '4px 6px', border: '1px solid #cbd5e1', borderRadius: 4,
   fontSize: 12, fontFamily: 'inherit', outline: 'none',
 })
+
+// ── add-row forms ─────────────────────────────────────────────────────────────
 
 function AddProfileRow({ onAdd, state, setState }: {
   onAdd: (r: PRow) => void
@@ -599,6 +807,67 @@ function AddStationRow({ onAdd, state, setState }: {
   )
 }
 
+function AddTrackPlanRow({ onAdd, state, setState }: {
+  onAdd: (r: TRow) => void
+  state: Partial<TRow>
+  setState: React.Dispatch<React.SetStateAction<Partial<TRow>>>
+}) {
+  return (
+    <div style={addRowStyle}>
+      <input style={addInput(100)} placeholder="Нач. м" type="number" value={state.start ?? ''}
+        onChange={e => setState(s => ({ ...s, start: parseFloat(e.target.value) }))} />
+      <input style={addInput(100)} placeholder="Кон. м" type="number" value={state.end ?? ''}
+        onChange={e => setState(s => ({ ...s, end: parseFloat(e.target.value) }))} />
+      <input style={addInput(80)} placeholder="Радиус м" type="number" value={state.radius ?? ''}
+        onChange={e => { const n = parseInt(e.target.value, 10); setState(s => ({ ...s, radius: isNaN(n) ? null : n })) }} />
+      <input style={addInput(80)} placeholder="Длина м" type="number" value={state.length ?? ''}
+        onChange={e => { const n = parseInt(e.target.value, 10); setState(s => ({ ...s, length: isNaN(n) ? null : n })) }} />
+      <select style={{ ...addInput(80), padding: '4px' }} value={state.direction ?? 'up'}
+        onChange={e => setState(s => ({ ...s, direction: e.target.value as 'up' | 'down' }))}>
+        <option value="up">up ↑</option>
+        <option value="down">down ↓</option>
+      </select>
+      <button onClick={() => {
+        if (state.start == null || state.end == null) return
+        onAdd({ start: state.start, end: state.end, radius: state.radius ?? null, length: state.length ?? null, direction: state.direction ?? 'up' })
+        setState({})
+      }} style={{ padding: '4px 10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        + Добавить
+      </button>
+    </div>
+  )
+}
+
+function AddLocoSegRow({ onAdd }: { onAdd: (s: LSeg) => void }) {
+  const [seg, setSeg] = useState<Partial<LSeg>>({ mode: 'traction', color: '#888888' })
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <input style={addInput(90)} placeholder="Нач. м" type="number" value={seg.start ?? ''}
+        onChange={e => setSeg(s => ({ ...s, start: parseFloat(e.target.value) }))} />
+      <input style={addInput(90)} placeholder="Кон. м" type="number" value={seg.end ?? ''}
+        onChange={e => setSeg(s => ({ ...s, end: parseFloat(e.target.value) }))} />
+      <select style={{ ...addInput(110), padding: '4px' }} value={seg.mode ?? 'traction'}
+        onChange={e => setSeg(s => ({ ...s, mode: e.target.value }))}>
+        <option value="traction">traction (тяга)</option>
+        <option value="coasting">coasting (выбег)</option>
+        <option value="braking">braking (торм.)</option>
+        <option value="unknown">unknown</option>
+      </select>
+      <input style={addInput(90)} placeholder="Надпись" value={seg.mode_label ?? ''}
+        onChange={e => setSeg(s => ({ ...s, mode_label: e.target.value }))} />
+      <input style={addInput(80)} placeholder="#цвет" value={seg.color ?? '#888888'}
+        onChange={e => setSeg(s => ({ ...s, color: e.target.value }))} />
+      <button onClick={() => {
+        if (seg.start == null || seg.end == null) return
+        onAdd({ start: seg.start, end: seg.end, mode: seg.mode ?? 'traction', mode_label: seg.mode_label ?? '', color: seg.color ?? '#888888' })
+        setSeg({ mode: 'traction', color: '#888888' })
+      }} style={{ padding: '4px 10px', background: '#6b7280', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        + Сегмент
+      </button>
+    </div>
+  )
+}
+
 function AddMarkRow({ onAdd, state, setState }: {
   onAdd: (r: MRow) => void
   state: Partial<MRow>
@@ -626,5 +895,5 @@ function AddMarkRow({ onAdd, state, setState }: {
   )
 }
 
-// suppress unused import warning
-void fmtM
+// suppress unused-var warning
+void fmtKm
