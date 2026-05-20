@@ -181,8 +181,10 @@ export interface ExtractionLog {
   }
   locomotive_regime: {
     y_groups_found: Array<{ y: number; lines_count: number; label: string; weight: number | null }>
-    rejected_y_groups_no_label: Array<{ y: number; lines_count: number }>
+    rejected_y_groups_no_label: Array<{ y: number; lines_count: number; reason?: string }>
     rejected_text_outside_work_area: Array<{ text: string; cx: number; cy: number }>
+    rejected_text_legend_stopword: Array<{ y: number; text: string; matched_stopword: string }>
+    rejected_text_outside_label_column: Array<{ text: string; cx: number; cy: number }>
     label_parsing: Array<{ raw: string; loco_type: string; weight: number | null }>
     total_bands: number
     total_segments: number

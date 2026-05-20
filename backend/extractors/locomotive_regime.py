@@ -7,9 +7,11 @@ Algorithm (v2 — Y-group based):
    frame/grid elements, not regime segments.
 2. Group coloured lines by cy (±5 px tolerance) → each Y-group represents
    one locomotive series.  Expect 2–4 groups on a typical map.
-3. For each Y-group, find label text(s) LEFT of work_area on the same Y
-   (±15 px).  Multiple text pieces at same Y are merged left-to-right.
-4. Y-groups without a matching label are discarded (warning issued).
+3. For each Y-group, find label text(s) in the "label column":
+       work_area.x_start - LOCO_LABEL_MAX_DISTANCE  <  cx  <  work_area.x_start - 50
+   Texts outside this column (too far left = legend/stamps) are ignored.
+   Texts matching stop-words or the "3000/450" curve-label pattern are rejected.
+4. Y-groups without a valid label are discarded (logged + warning).
 5. Parse label: extract locomotive series name and train weight.
 6. Find mode-label texts inside work_area at the same Y (±10 px).
    Match each line segment to the nearest mode text (≤ 500 px).
@@ -28,12 +30,42 @@ from models.parsed import ParsedShape
 
 _WEIGHT_RE = re.compile(r"(\d+)\s*т\b", re.IGNORECASE)
 
-_Y_GROUP_TOL_PX   = 5.0    # group coloured lines by cy (±)
-_LABEL_Y_TOL_PX   = 15.0   # label-text Y tolerance vs group cy (±)
-_MODE_Y_TOL_PX    = 10.0   # mode-text Y tolerance vs group cy (±)
-_MIN_LINE_W_PX    = 10.0   # minimum width to count as a line
-_MAX_MODE_DIST_PX = 500.0  # max X dist: mode text → line centre
-_COLOR_SAT_THR    = 60     # max(R,G,B) − min(R,G,B) > this → coloured
+_Y_GROUP_TOL_PX      = 5.0    # group coloured lines by cy (±)
+_LABEL_Y_TOL_PX      = 15.0   # label-text Y tolerance vs group cy (±)
+_MODE_Y_TOL_PX       = 10.0   # mode-text Y tolerance vs group cy (±)
+_MIN_LINE_W_PX       = 10.0   # minimum width to count as a line
+_MAX_MODE_DIST_PX    = 500.0  # max X dist: mode text → line centre
+_COLOR_SAT_THR       = 60     # max(R,G,B) − min(R,G,B) > this → coloured
+
+# Label column bounds relative to work_area.x_start:
+#   x_start - LOCO_LABEL_MAX_DISTANCE  <  cx  <  x_start - _LABEL_MIN_GAP
+LOCO_LABEL_MAX_DISTANCE = 2500  # texts further left are legend / stamps
+_LABEL_MIN_GAP          = 50   # texts closer than this are inside/adjacent to work area
+
+# Stop-word filtering for loco labels
+_CURVE_LABEL_RE = re.compile(r"^\s*\d+\s*/\s*\d+\s*$")  # "3000/450" → curve label
+
+_STOPWORDS: list[str] = [
+    "радиус", "длина кривой", "входной светофор", "выходной светофор",
+    "ось станции", "маршрутный светофор", "проходной светофор",
+    "ктсм", "укспс", "переезд", "тормозные ориентиры",
+    "условные обозначения", "обрывные места", "мост", "уклон",
+    "профиль", "длина", "установленная скорость", "управление тягой",
+    "осмотр кривых", "осмотр поезда", "нейтральная вставка",
+    "автоторможение", "депо", "утверждаю",
+]
+
+
+def _matched_stopword(text: str) -> str | None:
+    """Return the matched stop-word/pattern if text should be rejected as a loco label."""
+    stripped = text.strip()
+    if _CURVE_LABEL_RE.match(stripped):
+        return stripped
+    low = stripped.lower()
+    for sw in _STOPWORDS:
+        if sw in low:
+            return sw
+    return None
 
 
 def _cx(s: ParsedShape) -> float:
@@ -137,8 +169,18 @@ def extract_locomotive_regimes(
     # ── Step 2: group by Y ────────────────────────────────────────────────────
     y_groups = _group_by_y(coloured_lines, _Y_GROUP_TOL_PX)
 
-    # All text shapes left of work_area inside band
+    # Label column: texts strictly left of work_area, within the look-ahead window
+    _x_near = work_area.x_start - _LABEL_MIN_GAP
+    _x_far  = work_area.x_start - LOCO_LABEL_MAX_DISTANCE
     texts_left = [
+        s for s in shapes
+        if s.text and s.text.strip()
+        and band.y_top <= _cy(s) <= band.y_bottom
+        and _x_far < _cx(s) < _x_near
+    ]
+
+    # All texts strictly left of work_area (for the outside-column log)
+    texts_all_left = [
         s for s in shapes
         if s.text and s.text.strip()
         and band.y_top <= _cy(s) <= band.y_bottom
@@ -154,12 +196,14 @@ def extract_locomotive_regimes(
     ]
 
     log: dict = {
-        "y_groups_found":                   [],
-        "rejected_y_groups_no_label":       [],
-        "rejected_text_outside_work_area":  [],
-        "label_parsing":                    [],
-        "total_bands":                      0,
-        "total_segments":                   0,
+        "y_groups_found":                     [],
+        "rejected_y_groups_no_label":         [],
+        "rejected_text_outside_work_area":    [],
+        "rejected_text_legend_stopword":      [],
+        "rejected_text_outside_label_column": [],
+        "label_parsing":                      [],
+        "total_bands":                        0,
+        "total_segments":                     0,
     }
 
     result_bands: list[LocomotiveRegimeBand] = []
@@ -169,21 +213,40 @@ def extract_locomotive_regimes(
     for group_lines in y_groups:
         group_cy = statistics.mean(_cy(s) for s in group_lines)
 
-        # Step 3: find label texts at same Y, left of work_area
-        label_texts = sorted(
+        # Step 3: label candidates in the label column at same Y
+        candidates = sorted(
             [s for s in texts_left if abs(_cy(s) - group_cy) <= _LABEL_Y_TOL_PX],
             key=_cx,
         )
 
+        # Filter out stop-words / curve labels
+        label_texts: list[ParsedShape] = []
+        for s in candidates:
+            sw = _matched_stopword(s.text.strip())
+            if sw:
+                log["rejected_text_legend_stopword"].append({
+                    "y":                round(group_cy, 1),
+                    "text":             s.text.strip(),
+                    "matched_stopword": sw,
+                })
+            else:
+                label_texts.append(s)
+
         if not label_texts:
+            reason = (
+                "no text in label column"
+                if not candidates
+                else "no candidates after stop-words filter"
+            )
             log["rejected_y_groups_no_label"].append({
                 "y":           round(group_cy, 1),
                 "lines_count": len(group_lines),
+                "reason":      reason,
             })
             warnings.append(
                 f"locomotive_regime: Y-group at y≈{group_cy:.0f}px "
-                f"({len(group_lines)} coloured lines) — no loco label left of "
-                f"work_area (x_start={work_area.x_start:.0f}px, ±{_LABEL_Y_TOL_PX}px)"
+                f"({len(group_lines)} coloured lines) — {reason} "
+                f"(label column: x_start−{LOCO_LABEL_MAX_DISTANCE}px … x_start−{_LABEL_MIN_GAP}px)"
             )
             continue
 
@@ -257,19 +320,26 @@ def extract_locomotive_regimes(
             segments=segments,
         ))
 
-    # ── Log: texts left of WA that were NOT used as a label ──────────────────
+    # ── Log: unused label-column texts ───────────────────────────────────────
     log["rejected_text_outside_work_area"] = [
         {"text": s.text, "cx": round(_cx(s), 1), "cy": round(_cy(s), 1)}
         for s in texts_left
         if id(s) not in used_label_ids
     ]
+    # Texts in band but outside the label column (too far left or adjacent to WA)
+    log["rejected_text_outside_label_column"] = [
+        {"text": s.text.strip(), "cx": round(_cx(s), 1), "cy": round(_cy(s), 1)}
+        for s in texts_all_left
+        if not (_x_far < _cx(s) < _x_near)
+    ]
+
     log["total_bands"]    = len(result_bands)
     log["total_segments"] = total_segs
 
-    if not log["y_groups_found"]:
+    if not result_bands:
         warnings.append(
-            "Полосы режимов тяги не распознаны автоматически. "
-            "Используйте EditPanel для ручного добавления."
+            "Метки локомотивов не распознаны автоматически. "
+            "Используйте EditPanel для ручного заполнения."
         )
 
     return result_bands, log, warnings

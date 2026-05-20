@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { ExtractionResult, LocomotiveRegimeBand } from '../types'
 import { extractSession, saveEdits, exportSession } from '../api'
 import { MARK_SUBTYPES } from '../types'
+import { getMarkSubtypeLabel } from '../constants/markSubtypes'
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
@@ -326,11 +327,18 @@ function DiagnosticsBlock({ log, defaultOpen }: { log: ExtractionResult['extract
             <DiagSection title="Режимы тяги" entries={[
               ['Y-групп цветных линий',           String(log.locomotive_regime.y_groups_found.length)],
               ['Групп без метки (отброшено)',      String(log.locomotive_regime.rejected_y_groups_no_label.length)],
+              ['Отброшено стоп-словами',           String(log.locomotive_regime.rejected_text_legend_stopword?.length ?? 0)],
+              ['Вне колонки меток',               String(log.locomotive_regime.rejected_text_outside_label_column?.length ?? 0)],
               ['Полос извлечено',                 String(log.locomotive_regime.total_bands)],
               ['Всего сегментов',                 String(log.locomotive_regime.total_segments)],
               ...log.locomotive_regime.y_groups_found.map((g) => (
                 [`Y≈${g.y}px`, `${g.label}${g.weight != null ? ` / ${g.weight}т` : ''} (${g.lines_count} лин.)`] as [string, string]
               )),
+              ...(log.locomotive_regime.rejected_y_groups_no_label.length > 0
+                ? log.locomotive_regime.rejected_y_groups_no_label.map((r) => (
+                  [`Отброшена Y≈${r.y}px`, r.reason ?? 'нет метки'] as [string, string]
+                ))
+                : []),
             ]} />
           )}
         </div>
@@ -562,7 +570,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
     cursor: 'text', userSelect: 'none',
   }
 
-  function Cell({ t, idx, field, value }: { t: EditTabId; idx: number; field: string; value: string | number }) {
+  function Cell({ t, idx, field, value, displayValue }: { t: EditTabId; idx: number; field: string; value: string | number; displayValue?: string }) {
     const isMe = editCell?.tab === t && editCell.idx === idx && editCell.field === field
     return (
       <td style={cellStyle} onClick={() => !isMe && startEdit(t, idx, field, String(value))}>
@@ -575,7 +583,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
               onBlur={applyEdit}
               onKeyDown={e => { if (e.key === 'Enter') applyEdit(); if (e.key === 'Escape') setEditCell(null) }}
             />
-          : value
+          : (displayValue ?? value)
         }
       </td>
     )
@@ -756,7 +764,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                   <ViewSection title={`Метки (${result.marks.length})`}>
                     <DataTable
                       headers={['Подтип', 'Координата (м)']}
-                      rows={result.marks.map((m) => [m.subtype, String(Math.round(m.coordinate))])}
+                      rows={result.marks.map((m) => [getMarkSubtypeLabel(m.subtype), String(Math.round(m.coordinate))])}
                       onNavigate={i => navigate(result.marks[i].coordinate)}
                     />
                   </ViewSection>
@@ -1064,7 +1072,7 @@ export default function EditPanel({ sessionId, onClose, onNavigate }: {
                               {edit.marks.map((row, i) => (
                                 <tr key={i} style={rowHover} onClick={() => navigate(row.coordinate)}>
                                   <td style={{ ...cellStyle, color: '#94a3b8', width: 32 }}>{i + 1}</td>
-                                  <Cell t="marks" idx={i} field="subtype"    value={row.subtype} />
+                                  <Cell t="marks" idx={i} field="subtype" value={row.subtype} displayValue={getMarkSubtypeLabel(row.subtype)} />
                                   <Cell t="marks" idx={i} field="coordinate" value={Math.round(row.coordinate)} />
                                   <Cell t="marks" idx={i} field="x"          value={Math.round(row.x)} />
                                   <Cell t="marks" idx={i} field="y"          value={Math.round(row.y)} />
